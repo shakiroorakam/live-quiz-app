@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { onSnapshot, doc, collection, updateDoc, writeBatch } from 'firebase/firestore';
+import { onSnapshot, doc, collection, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { BarChart2, CheckCircle, XCircle, PlusCircle, Send } from 'lucide-react';
+import { BarChart2, CheckCircle, XCircle, PlusCircle, Send, Users, HelpCircle, Trash2 } from 'lucide-react';
 import { CopyButton } from '../components/CopyButton';
 import { Navbar } from '../components/Navbar';
-import { MasterNav } from '../components/MasterNav'; // Import the new component
+import { MasterNav } from '../components/MasterNav';
 
-// Reusable Components
+// --- Reusable Components within QuizMasterView ---
+
 const QuestionsTab = ({ questions = [], handleAddQuestion, newQuestion, setNewQuestion }) => {
     const initialQuestionState = { type: 'mcq', text: '', options: ['', '', '', ''], correctAnswer: '', points: 10 };
     return (
@@ -71,7 +72,30 @@ const StartQuizTab = ({ questions = [], airedQuestionIds = [], handleAirQuestion
     </div>
 );
 
-// Main Component
+// --- NEW: Component for the Participants Tab with Delete functionality ---
+const ParticipantsTab = ({ participants, handleDeleteParticipant }) => (
+    <div className="card shadow-sm border-0">
+        <div className="card-header bg-white h5">Participants ({participants.length})</div>
+        <ul className="list-group list-group-flush">
+            {participants.length === 0 && <li className="list-group-item text-muted">No participants have joined yet.</li>}
+            {participants.map(p => (
+                <li key={p.id} className="list-group-item d-flex justify-content-between align-items-center">
+                    <span>{p.name}</span>
+                    <button 
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => handleDeleteParticipant(p.id, p.name)}
+                    >
+                        <Trash2 size={16} />
+                    </button>
+                </li>
+            ))}
+        </ul>
+    </div>
+);
+
+
+// --- Main QuizMasterView Component ---
+
 export function QuizMasterView() {
     const { quizId } = useParams();
     const [quiz, setQuiz] = useState(null);
@@ -81,13 +105,13 @@ export function QuizMasterView() {
     const [activeTab, setActiveTab] = useState('start');
     const [airedQuestionIds, setAiredQuestionIds] = useState([]);
 
+    // --- FIX: Simplified dependency array to ensure stable real-time listeners ---
     useEffect(() => {
         const unsubQuiz = onSnapshot(doc(db, "quizzes", quizId), (doc) => {
             const data = doc.data();
             setQuiz(data);
-            if (data && data.questions) {
-                const airedIds = data.questions.filter(q => q.id === data.currentQuestionId || airedQuestionIds.includes(q.id)).map(q => q.id);
-                setAiredQuestionIds(prev => [...new Set([...prev, ...airedIds])]);
+            if (data && data.questions && data.currentQuestionId) {
+                setAiredQuestionIds(prev => [...new Set([...prev, data.currentQuestionId])]);
             }
         });
         const unsubParticipants = onSnapshot(collection(db, `quizzes/${quizId}/participants`), (snap) => {
@@ -96,7 +120,7 @@ export function QuizMasterView() {
             setParticipants(parts);
         });
         return () => { unsubQuiz(); unsubParticipants(); };
-    }, [quizId, airedQuestionIds]);
+    }, [quizId]);
 
     useEffect(() => {
         if ((quiz?.state === 'question_live' || quiz?.state === 'question_ended') && quiz?.currentQuestionId) {
@@ -150,6 +174,20 @@ export function QuizMasterView() {
         await batch.commit();
     };
     
+    // --- NEW: Function to delete a participant ---
+    const handleDeleteParticipant = async (participantId, participantName) => {
+        if (window.confirm(`Are you sure you want to remove ${participantName} from the quiz?`)) {
+            try {
+                const participantRef = doc(db, `quizzes/${quizId}/participants`, participantId);
+                await deleteDoc(participantRef);
+                console.log(`Participant ${participantName} deleted.`);
+            } catch (error) {
+                console.error("Error deleting participant: ", error);
+                alert("Failed to delete participant.");
+            }
+        }
+    };
+    
     const currentQuestion = quiz?.questions.find(q => q.id === quiz.currentQuestionId);
 
     const renderMainContent = () => {
@@ -194,7 +232,7 @@ export function QuizMasterView() {
         }
         switch (activeTab) {
             case 'questions': return <QuestionsTab questions={quiz?.questions} handleAddQuestion={handleAddQuestion} newQuestion={newQuestion} setNewQuestion={setNewQuestion} />;
-            case 'participants': return (<div className="card shadow-sm border-0"><div className="card-header bg-white h5">Participants ({participants.length})</div><ul className="list-group list-group-flush">{participants.map(p => <li key={p.id} className="list-group-item">{p.name}</li>)}</ul></div>);
+            case 'participants': return <ParticipantsTab participants={participants} handleDeleteParticipant={handleDeleteParticipant} />;
             case 'start': default: return <StartQuizTab questions={quiz?.questions} airedQuestionIds={airedQuestionIds} handleAirQuestion={handleAirQuestion} />;
         }
     };
@@ -237,3 +275,5 @@ export function QuizMasterView() {
         </>
     );
 }
+
+    
