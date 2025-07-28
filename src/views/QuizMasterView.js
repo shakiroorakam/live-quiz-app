@@ -1,7 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { onSnapshot, doc, collection, updateDoc, writeBatch, deleteDoc, getDocs } from 'firebase/firestore';
+// --- THIS IS THE FIX ---
+// Added 'getDocs' and 'getDoc' to the import list.
+import { onSnapshot, doc, collection, updateDoc, writeBatch, deleteDoc, getDocs, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { BarChart2, CheckCircle, XCircle, PlusCircle, Send, Users, HelpCircle, Trash2, Loader2 } from 'lucide-react';
 import { CopyButton } from '../components/CopyButton';
@@ -125,6 +126,29 @@ const ParticipantDetailModal = ({ participant, answers, isLoading, onClose }) =>
         </div>
     );
 };
+
+const VerificationListItem = ({ ans, handleVerification }) => {
+    const renderVerificationStatus = () => {
+        if (ans.isCorrect === true) return <CheckCircle className="text-success" size={24}/>;
+        if (ans.isCorrect === false) return <XCircle className="text-danger" size={24}/>;
+        return (
+            <div>
+                <button onClick={() => handleVerification(ans.id, true)} className="btn btn-sm btn-outline-success mr-2"><CheckCircle size={18}/></button>
+                <button onClick={() => handleVerification(ans.id, false)} className="btn btn-sm btn-outline-danger"><XCircle size={18}/></button>
+            </div>
+        );
+    };
+    return (
+        <li className="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+                <p className="font-weight-bold mb-0">{ans.participantName}</p>
+                <p className="text-muted mb-0" style={{whiteSpace: 'pre-wrap'}}>{ans.answer}</p>
+            </div>
+            {renderVerificationStatus()}
+        </li>
+    );
+};
+
 
 // --- Main QuizMasterView Component ---
 
@@ -264,32 +288,9 @@ export function QuizMasterView() {
                     <div className="card-header bg-white h5">Verify Answers: <span className="text-primary">{currentQuestion.text}</span></div>
                      <ul className="list-group list-group-flush">
                         {answers.length === 0 && <li className="list-group-item text-muted">No answers submitted.</li>}
-                        {answers.map(ans => {
-                            // --- THIS IS THE FIX ---
-                            // This simplified structure is much safer for the build process.
-                            let verificationStatus;
-                            if (ans.isCorrect === true) {
-                                verificationStatus = <CheckCircle className="text-success" size={24}/>;
-                            } else if (ans.isCorrect === false) {
-                                verificationStatus = <XCircle className="text-danger" size={24}/>;
-                            } else {
-                                verificationStatus = (
-                                    <div>
-                                        <button onClick={() => handleVerification(ans.id, true)} className="btn btn-sm btn-outline-success mr-2"><CheckCircle size={18}/></button>
-                                        <button onClick={() => handleVerification(ans.id, false)} className="btn btn-sm btn-outline-danger"><XCircle size={18}/></button>
-                                    </div>
-                                );
-                            }
-                            return (
-                                <li key={ans.id} className="list-group-item d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <p className="font-weight-bold mb-0">{ans.participantName}</p>
-                                        <p className="text-muted mb-0" style={{whiteSpace: 'pre-wrap'}}>{ans.answer}</p>
-                                    </div>
-                                    {verificationStatus}
-                                </li>
-                            );
-                        })}
+                        {answers.map(ans => (
+                            <VerificationListItem key={ans.id} ans={ans} handleVerification={handleVerification} />
+                        ))}
                     </ul>
                     <div className="card-footer bg-white text-right">
                         <button onClick={handleFinishVerification} className="btn btn-primary">Finish Verification & Return</button>
@@ -344,11 +345,4 @@ export function QuizMasterView() {
                                     </li>
                                 ))}
                             </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </>
-    );
-}
-
+                  
