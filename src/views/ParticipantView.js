@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-// --- THIS IS THE FIX: Import 'increment' from firestore ---
 import { onSnapshot, doc, collection, setDoc, writeBatch, increment } from 'firebase/firestore';
 import { db, auth } from '../firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -14,6 +13,7 @@ export function ParticipantView() {
 
     const [quiz, setQuiz] = useState(null);
     const [participants, setParticipants] = useState([]);
+    const [myParticipantData, setMyParticipantData] = useState(null); // State for the current user's data
     const [myAnswer, setMyAnswer] = useState(null);
     const [selectedOption, setSelectedOption] = useState(null);
     const [descriptiveAnswer, setDescriptiveAnswer] = useState('');
@@ -29,21 +29,30 @@ export function ParticipantView() {
         return () => unsubscribe();
     }, []);
 
+    // --- THIS IS THE FIX ---
+    // This useEffect now correctly tracks the participant list and the current user's specific data.
     useEffect(() => {
-        if (!quizId) return;
+        if (!quizId || !user) return;
+
         const unsubQuiz = onSnapshot(doc(db, "quizzes", quizId), (doc) => {
             setQuiz(doc.data());
         });
+
         const unsubParticipants = onSnapshot(collection(db, `quizzes/${quizId}/participants`), (snap) => {
             const parts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             parts.sort((a, b) => b.score - a.score);
             setParticipants(parts);
+
+            // Find the current user's data from the updated list and set it to state
+            const myData = parts.find(p => p.id === user.uid);
+            setMyParticipantData(myData);
         });
+
         return () => { 
             unsubQuiz(); 
             unsubParticipants(); 
         };
-    }, [quizId]);
+    }, [quizId, user]); // Dependency on 'user' ensures this runs after authentication
 
     useEffect(() => {
         if (quiz?.currentQuestionId && quiz.currentQuestionId !== prevQuestionIdRef.current) {
@@ -66,10 +75,9 @@ export function ParticipantView() {
     }, [quiz?.currentQuestionId, user, quizId]);
 
     const handleSubmitAnswer = async () => {
-        if (!user) return;
-        const me = participants.find(p => p.id === user.uid);
+        if (!user || !myParticipantData) return;
         const currentQuestion = quiz.questions.find(q => q.id === quiz.currentQuestionId);
-        if (!me || !currentQuestion) return;
+        if (!currentQuestion) return;
 
         let answerToSubmit = '';
         if (currentQuestion.type === 'mcq') {
@@ -88,13 +96,10 @@ export function ParticipantView() {
         const answerRef = doc(db, answerDocPath);
         batch.set(answerRef, {
             answer: answerToSubmit,
-            participantName: me.name,
+            participantName: myParticipantData.name,
             isCorrect: isCorrect,
         });
 
-        // --- THIS IS THE FIX ---
-        // If the question is an MCQ and the answer is correct, update the score
-        // using the robust 'increment' method.
         if (currentQuestion.type === 'mcq' && isCorrect) {
             const participantRef = doc(db, `quizzes/${quizId}/participants`, user.uid);
             batch.update(participantRef, { score: increment(currentQuestion.points || 0) });
@@ -230,7 +235,9 @@ export function ParticipantView() {
             <div className="d-flex justify-content-between align-items-center my-4">
                 <h1 className="h3">{quiz?.quizMasterName}'s Quiz</h1>
                 <div className="text-right">
-                    <p className="h4 font-weight-bold text-primary mb-0">{participants.find(p=>p.id === user?.uid)?.score || 0} pts</p>
+                    {/* --- THIS IS THE FIX --- */}
+                    {/* The score display now uses its own dedicated state variable */}
+                    <p className="h4 font-weight-bold text-primary mb-0">{myParticipantData?.score || 0} pts</p>
                     <p className="text-muted mb-0">Your Score</p>
                 </div>
             </div>
