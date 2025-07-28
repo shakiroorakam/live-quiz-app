@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, PlusCircle, Edit, Trash2 } from 'lucide-react';
-import { db, auth } from '../firebase/config';
-import { onAuthStateChanged } from 'firebase/auth';
+import { db } from '../firebase/config';
 import { 
     collection, 
     query, 
@@ -29,9 +28,9 @@ async function deleteDocumentAndSubcollections(docRef) {
     await deleteDoc(docRef);
 }
 
-export function AdminLoginView() {
+// --- FIX: Component now accepts 'user' as a prop ---
+export function AdminLoginView({ user }) {
     const navigate = useNavigate();
-    const [user, setUser] = useState(null);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loginError, setLoginError] = useState('');
@@ -40,15 +39,10 @@ export function AdminLoginView() {
     const [userQuizzes, setUserQuizzes] = useState([]);
     const [isLoadingQuizzes, setIsLoadingQuizzes] = useState(true);
 
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            setUser(currentUser);
-        });
-        return () => unsubscribe();
-    }, []);
-
+    // Effect to fetch the user's quizzes after they log in
     useEffect(() => {
         if (!isLoggedIn || !user) return;
+
         const q = query(collection(db, "quizzes"), where("quizMasterId", "==", user.uid));
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
             const quizzes = [];
@@ -58,6 +52,7 @@ export function AdminLoginView() {
             setUserQuizzes(quizzes);
             setIsLoadingQuizzes(false);
         });
+
         return () => unsubscribe();
     }, [isLoggedIn, user]);
 
@@ -96,6 +91,7 @@ export function AdminLoginView() {
             try {
                 const quizDocRef = doc(db, 'quizzes', quizIdToDelete);
                 await deleteDocumentAndSubcollections(quizDocRef);
+                console.log(`Quiz ${quizIdToDelete} deleted successfully.`);
             } catch (error) {
                 console.error("Error deleting quiz: ", error);
                 alert("Failed to delete quiz.");
@@ -103,6 +99,7 @@ export function AdminLoginView() {
         }
     };
 
+    // Render login form if not logged in
     if (!isLoggedIn) {
         return (
             <div className="d-flex align-items-center justify-content-center min-vh-100">
@@ -128,6 +125,7 @@ export function AdminLoginView() {
         );
     }
 
+    // Render Quiz Management Hub after login
     return (
         <div className="d-flex align-items-center justify-content-center min-vh-100">
             <div className="card shadow-lg border-0" style={{ width: '100%', maxWidth: '600px' }}>
@@ -167,3 +165,5 @@ export function AdminLoginView() {
         </div>
     );
 }
+
+            
