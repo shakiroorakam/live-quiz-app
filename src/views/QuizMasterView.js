@@ -278,13 +278,13 @@ export function QuizMasterView() {
                                     <p className="text-muted mb-0" style={{whiteSpace: 'pre-wrap'}}>{ans.answer}</p>
                                 </div>
                                 {/* --- THIS IS THE FIX --- */}
-                                {/* This JSX block is now simplified to avoid build errors. */}
-                                {ans.isCorrect === null && (
+                                {/* This simplified JSX block is much safer for the build process. */}
+                                {ans.isCorrect === null &&
                                     <div>
                                         <button onClick={() => handleVerification(ans.id, true)} className="btn btn-sm btn-outline-success mr-2"><CheckCircle size={18}/></button>
                                         <button onClick={() => handleVerification(ans.id, false)} className="btn btn-sm btn-outline-danger"><XCircle size={18}/></button>
                                     </div>
-                                )}
+                                }
                                 {ans.isCorrect === true && <CheckCircle className="text-success" size={24}/>}
                                 {ans.isCorrect === false && <XCircle className="text-danger" size={24}/>}
                             </li>
@@ -339,4 +339,4 @@ export function QuizMasterView() {
                                             <span className="font-weight-bold mr-3">{index + 1}.</span>
                                             <span>{p.name}</span>
                                         </button>
-                                        <span className="badge badge-primary badge-pill p-
+                                        <span className="badge badge-primary badge-pil
