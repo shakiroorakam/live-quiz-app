@@ -345,4 +345,10 @@ export function QuizMasterView() {
                                     </li>
                                 ))}
                             </ul>
-                  
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+}
