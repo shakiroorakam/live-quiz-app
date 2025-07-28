@@ -125,29 +125,6 @@ const ParticipantDetailModal = ({ participant, answers, isLoading, onClose }) =>
     );
 };
 
-const VerificationListItem = ({ ans, handleVerification }) => {
-    const renderVerificationStatus = () => {
-        if (ans.isCorrect === true) return <CheckCircle className="text-success" size={24}/>;
-        if (ans.isCorrect === false) return <XCircle className="text-danger" size={24}/>;
-        return (
-            <div>
-                <button onClick={() => handleVerification(ans.id, true)} className="btn btn-sm btn-outline-success mr-2"><CheckCircle size={18}/></button>
-                <button onClick={() => handleVerification(ans.id, false)} className="btn btn-sm btn-outline-danger"><XCircle size={18}/></button>
-            </div>
-        );
-    };
-    return (
-        <li className="list-group-item d-flex justify-content-between align-items-center">
-            <div>
-                <p className="font-weight-bold mb-0">{ans.participantName}</p>
-                <p className="text-muted mb-0" style={{whiteSpace: 'pre-wrap'}}>{ans.answer}</p>
-            </div>
-            {renderVerificationStatus()}
-        </li>
-    );
-};
-
-
 // --- Main QuizMasterView Component ---
 
 export function QuizMasterView() {
@@ -286,9 +263,32 @@ export function QuizMasterView() {
                     <div className="card-header bg-white h5">Verify Answers: <span className="text-primary">{currentQuestion.text}</span></div>
                      <ul className="list-group list-group-flush">
                         {answers.length === 0 && <li className="list-group-item text-muted">No answers submitted.</li>}
-                        {answers.map(ans => (
-                            <VerificationListItem key={ans.id} ans={ans} handleVerification={handleVerification} />
-                        ))}
+                        {answers.map(ans => {
+                            // --- THIS IS THE FIX ---
+                            // This simplified structure is much safer for the build process.
+                            let verificationStatus;
+                            if (ans.isCorrect === true) {
+                                verificationStatus = <CheckCircle className="text-success" size={24}/>;
+                            } else if (ans.isCorrect === false) {
+                                verificationStatus = <XCircle className="text-danger" size={24}/>;
+                            } else {
+                                verificationStatus = (
+                                    <div>
+                                        <button onClick={() => handleVerification(ans.id, true)} className="btn btn-sm btn-outline-success mr-2"><CheckCircle size={18}/></button>
+                                        <button onClick={() => handleVerification(ans.id, false)} className="btn btn-sm btn-outline-danger"><XCircle size={18}/></button>
+                                    </div>
+                                );
+                            }
+                            return (
+                                <li key={ans.id} className="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <p className="font-weight-bold mb-0">{ans.participantName}</p>
+                                        <p className="text-muted mb-0" style={{whiteSpace: 'pre-wrap'}}>{ans.answer}</p>
+                                    </div>
+                                    {verificationStatus}
+                                </li>
+                            );
+                        })}
                     </ul>
                     <div className="card-footer bg-white text-right">
                         <button onClick={handleFinishVerification} className="btn btn-primary">Finish Verification & Return</button>
@@ -335,17 +335,4 @@ export function QuizMasterView() {
                             <ul className="list-group list-group-flush">
                                 {participants.map((p, index) => (
                                     <li key={p.id} className="list-group-item d-flex justify-content-between align-items-center">
-                                        <button className="btn btn-link p-0 text-left" onClick={() => handleSelectParticipant(p)}>
-                                            <span className="font-weight-bold mr-3">{index + 1}.</span>
-                                            <span>{p.name}</span>
-                                        </button>
-                                        <span className="badge badge-primary badge-pill p-2">{p.score} pts</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-</>
-     
+                                        <button className="btn btn-link p-0 text-left" onClick={() => handleSelectParticipant(p)}
