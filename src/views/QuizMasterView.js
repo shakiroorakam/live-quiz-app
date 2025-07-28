@@ -271,31 +271,24 @@ export function QuizMasterView() {
                     <div className="card-header bg-white h5">Verify Answers: <span className="text-primary">{currentQuestion.text}</span></div>
                      <ul className="list-group list-group-flush">
                         {answers.length === 0 && <li className="list-group-item text-muted">No answers submitted.</li>}
-                        {answers.map(ans => {
-                            // --- THIS IS THE FIX ---
-                            // This helper function makes the JSX cleaner and avoids parsing errors.
-                            const renderVerificationStatus = () => {
-                                if (ans.isCorrect === null) {
-                                    return (
-                                        <div>
-                                            <button onClick={() => handleVerification(ans.id, true)} className="btn btn-sm btn-outline-success mr-2"><CheckCircle size={18}/></button>
-                                            <button onClick={() => handleVerification(ans.id, false)} className="btn btn-sm btn-outline-danger"><XCircle size={18}/></button>
-                                        </div>
-                                    );
-                                }
-                                return ans.isCorrect ? <CheckCircle className="text-success" size={24}/> : <XCircle className="text-danger" size={24}/>;
-                            };
-
-                            return (
-                                <li key={ans.id} className="list-group-item d-flex justify-content-between align-items-center">
+                        {answers.map(ans => (
+                            <li key={ans.id} className="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <p className="font-weight-bold mb-0">{ans.participantName}</p>
+                                    <p className="text-muted mb-0" style={{whiteSpace: 'pre-wrap'}}>{ans.answer}</p>
+                                </div>
+                                {/* --- THIS IS THE FIX --- */}
+                                {/* This JSX block is now simplified to avoid build errors. */}
+                                {ans.isCorrect === null && (
                                     <div>
-                                        <p className="font-weight-bold mb-0">{ans.participantName}</p>
-                                        <p className="text-muted mb-0" style={{whiteSpace: 'pre-wrap'}}>{ans.answer}</p>
+                                        <button onClick={() => handleVerification(ans.id, true)} className="btn btn-sm btn-outline-success mr-2"><CheckCircle size={18}/></button>
+                                        <button onClick={() => handleVerification(ans.id, false)} className="btn btn-sm btn-outline-danger"><XCircle size={18}/></button>
                                     </div>
-                                    {renderVerificationStatus()}
-                                </li>
-                            );
-                        })}
+                                )}
+                                {ans.isCorrect === true && <CheckCircle className="text-success" size={24}/>}
+                                {ans.isCorrect === false && <XCircle className="text-danger" size={24}/>}
+                            </li>
+                        ))}
                     </ul>
                     <div className="card-footer bg-white text-right">
                         <button onClick={handleFinishVerification} className="btn btn-primary">Finish Verification & Return</button>
@@ -343,4 +336,7 @@ export function QuizMasterView() {
                                 {participants.map((p, index) => (
                                     <li key={p.id} className="list-group-item d-flex justify-content-between align-items-center">
                                         <button className="btn btn-link p-0 text-left" onClick={() => handleSelectParticipant(p)}>
-                   
+                                            <span className="font-weight-bold mr-3">{index + 1}.</span>
+                                            <span>{p.name}</span>
+                                        </button>
+                                        <span className="badge badge-primary badge-pill p-
