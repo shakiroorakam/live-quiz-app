@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { onSnapshot, doc, collection, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+// --- THIS IS THE FIX: Import 'increment' from firestore ---
+import { onSnapshot, doc, collection, setDoc, writeBatch, increment } from 'firebase/firestore';
 import { db, auth } from '../firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 import { BarChart2 } from 'lucide-react';
@@ -92,11 +93,11 @@ export function ParticipantView() {
         });
 
         // --- THIS IS THE FIX ---
-        // If the question is an MCQ and the answer is correct, update the score immediately.
+        // If the question is an MCQ and the answer is correct, update the score
+        // using the robust 'increment' method.
         if (currentQuestion.type === 'mcq' && isCorrect) {
             const participantRef = doc(db, `quizzes/${quizId}/participants`, user.uid);
-            const newScore = (me.score || 0) + (currentQuestion.points || 0);
-            batch.update(participantRef, { score: newScore });
+            batch.update(participantRef, { score: increment(currentQuestion.points || 0) });
         }
         
         await batch.commit();
