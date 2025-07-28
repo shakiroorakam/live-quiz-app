@@ -1,18 +1,33 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
 import { onSnapshot, doc, collection, setDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { db, auth } from '../firebase/config';
+import { onAuthStateChanged } from 'firebase/auth';
 import { BarChart2 } from 'lucide-react';
 import { Spinner } from '../components/Spinner';
 
-export function ParticipantView({ quizId, user }) {
+export function ParticipantView() {
+    const { quizId } = useParams(); // Get quizId from the URL
+    const [user, setUser] = useState(null);
+    const [authLoading, setAuthLoading] = useState(true);
+
     const [quiz, setQuiz] = useState(null);
     const [participants, setParticipants] = useState([]);
     const [myAnswer, setMyAnswer] = useState(null);
-    const [selectedOption, setSelectedOption] = useState(null); // For MCQ
-    const [descriptiveAnswer, setDescriptiveAnswer] = useState(''); // For Descriptive
+    const [selectedOption, setSelectedOption] = useState(null);
+    const [descriptiveAnswer, setDescriptiveAnswer] = useState('');
     
     const autoSubmitRef = useRef(false);
     const prevQuestionIdRef = useRef(null);
+
+    // Effect to get the current authenticated user
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            setUser(currentUser);
+            setAuthLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
 
     // Effect for fetching main quiz and participant data
     useEffect(() => {
@@ -34,11 +49,9 @@ export function ParticipantView({ quizId, user }) {
         };
     }, [quizId]);
 
-    // --- FIX: Separated logic for handling NEW questions ---
-    // This effect runs only when the current question ID changes.
+    // Effect for handling NEW questions
     useEffect(() => {
         if (quiz?.currentQuestionId && quiz.currentQuestionId !== prevQuestionIdRef.current) {
-            // A new question has been aired, so reset everything.
             setMyAnswer(null);
             setSelectedOption(null);
             setDescriptiveAnswer('');
@@ -46,7 +59,6 @@ export function ParticipantView({ quizId, user }) {
             prevQuestionIdRef.current = quiz.currentQuestionId;
         }
     }, [quiz?.currentQuestionId]);
-
 
     // Effect for fetching the user's answer to the current question
     useEffect(() => {
@@ -196,6 +208,15 @@ export function ParticipantView({ quizId, user }) {
         );
     };
 
+    // Show a spinner while authenticating or if the quiz data hasn't loaded yet.
+    if (authLoading || !quiz) {
+        return (
+            <div className="d-flex align-items-center justify-content-center min-vh-100">
+                <Spinner text="Loading Quiz..." />
+            </div>
+        );
+    }
+
     return (
         <div className="container" style={{ maxWidth: '800px' }}>
             <div className="d-flex justify-content-between align-items-center my-4">
@@ -208,7 +229,7 @@ export function ParticipantView({ quizId, user }) {
 
             <div className="card shadow-sm border-0">
                 <div className="card-body p-4 p-md-5" style={{ minHeight: '30rem' }}>
-                    {quiz ? renderContent() : <Spinner />}
+                    {renderContent()}
                 </div>
             </div>
             
@@ -230,4 +251,4 @@ export function ParticipantView({ quizId, user }) {
     );
 }
 
-                                         
+            
