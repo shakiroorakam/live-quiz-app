@@ -144,20 +144,22 @@ export function QuizMasterView() {
     useEffect(() => {
         if (!quizId) return;
 
-        // Listener for the main quiz document
+        console.log("Setting up Firebase listeners for Quiz:", quizId);
+
         const unsubQuiz = onSnapshot(doc(db, "quizzes", quizId), (doc) => {
+            console.log(">>> Real-time: Quiz data received from Firebase.");
             setQuiz(doc.data());
         });
 
-        // Listener for the participants subcollection
         const unsubParticipants = onSnapshot(collection(db, `quizzes/${quizId}/participants`), (snap) => {
+            console.log(">>> Real-time: Participants data received. Count:", snap.size);
             const parts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             parts.sort((a, b) => b.score - a.score);
             setParticipants(parts);
         });
 
-        // Cleanup function to detach listeners when the component unmounts
         return () => {
+            console.log("Cleaning up Firebase listeners.");
             unsubQuiz();
             unsubParticipants();
         };
@@ -212,7 +214,7 @@ export function QuizMasterView() {
     };
     
     const handleAirQuestion = async (questionId) => {
-        setAiredQuestionIds(prev => [...prev, questionId]);
+        setAiredQuestionIds(prev => [...new Set([...prev, questionId])]);
         await updateDoc(doc(db, "quizzes", quizId), { state: 'question_live', currentQuestionId: questionId });
     };
 
@@ -340,6 +342,4 @@ export function QuizMasterView() {
                                     <li key={p.id} className="list-group-item d-flex justify-content-between align-items-center">
                                         <button className="btn btn-link p-0 text-left" onClick={() => handleSelectParticipant(p)}>
                                             <span className="font-weight-bold mr-3">{index + 1}.</span>
-                                            <span>{p.name}</span>
-                                        </button>
-                                        <span classN
+                                 
