@@ -13,7 +13,7 @@ export function ParticipantView() {
 
     const [quiz, setQuiz] = useState(null);
     const [participants, setParticipants] = useState([]);
-    const [myParticipantData, setMyParticipantData] = useState(null); // State for the current user's data
+    const [myParticipantData, setMyParticipantData] = useState(null);
     const [myAnswer, setMyAnswer] = useState(null);
     const [selectedOption, setSelectedOption] = useState(null);
     const [descriptiveAnswer, setDescriptiveAnswer] = useState('');
@@ -30,27 +30,34 @@ export function ParticipantView() {
     }, []);
 
     // --- THIS IS THE FIX ---
-    // This useEffect now correctly tracks the participant list and the current user's specific data.
+    // This useEffect now has dedicated listeners for each piece of data,
+    // ensuring the user's score updates reliably.
     useEffect(() => {
         if (!quizId || !user) return;
 
+        // Listener for the main quiz document
         const unsubQuiz = onSnapshot(doc(db, "quizzes", quizId), (doc) => {
             setQuiz(doc.data());
         });
 
+        // Listener for the entire participants list (for the scoreboard)
         const unsubParticipants = onSnapshot(collection(db, `quizzes/${quizId}/participants`), (snap) => {
             const parts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             parts.sort((a, b) => b.score - a.score);
             setParticipants(parts);
+        });
 
-            // Find the current user's data from the updated list and set it to state
-            const myData = parts.find(p => p.id === user.uid);
-            setMyParticipantData(myData);
+        // Dedicated listener for the current user's participant data (for the top score display)
+        const unsubMyData = onSnapshot(doc(db, `quizzes/${quizId}/participants`, user.uid), (doc) => {
+            if (doc.exists()) {
+                setMyParticipantData({ id: doc.id, ...doc.data() });
+            }
         });
 
         return () => { 
             unsubQuiz(); 
-            unsubParticipants(); 
+            unsubParticipants();
+            unsubMyData();
         };
     }, [quizId, user]); // Dependency on 'user' ensures this runs after authentication
 
@@ -235,8 +242,6 @@ export function ParticipantView() {
             <div className="d-flex justify-content-between align-items-center my-4">
                 <h1 className="h3">{quiz?.quizMasterName}'s Quiz</h1>
                 <div className="text-right">
-                    {/* --- THIS IS THE FIX --- */}
-                    {/* The score display now uses its own dedicated state variable */}
                     <p className="h4 font-weight-bold text-primary mb-0">{myParticipantData?.score || 0} pts</p>
                     <p className="text-muted mb-0">Your Score</p>
                 </div>
