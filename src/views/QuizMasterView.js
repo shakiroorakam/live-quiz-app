@@ -140,22 +140,28 @@ export function QuizMasterView() {
     const [participantAnswers, setParticipantAnswers] = useState([]);
     const [isLoadingAnswers, setIsLoadingAnswers] = useState(false);
 
+    // --- FIX: This is the corrected, stable useEffect for real-time data ---
     useEffect(() => {
+        if (!quizId) return;
+
+        // Listener for the main quiz document
         const unsubQuiz = onSnapshot(doc(db, "quizzes", quizId), (doc) => {
-            const data = doc.data();
-            setQuiz(data);
-            if (data && data.questions) {
-                const currentAired = data.questions.filter(q => q.id === data.currentQuestionId).map(q => q.id);
-                setAiredQuestionIds(prev => [...new Set([...prev, ...currentAired])]);
-            }
+            setQuiz(doc.data());
         });
+
+        // Listener for the participants subcollection
         const unsubParticipants = onSnapshot(collection(db, `quizzes/${quizId}/participants`), (snap) => {
             const parts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             parts.sort((a, b) => b.score - a.score);
             setParticipants(parts);
         });
-        return () => { unsubQuiz(); unsubParticipants(); };
-    }, [quizId]);
+
+        // Cleanup function to detach listeners when the component unmounts
+        return () => {
+            unsubQuiz();
+            unsubParticipants();
+        };
+    }, [quizId]); // This effect only runs when the quizId changes.
 
     useEffect(() => {
         if ((quiz?.state === 'question_live' || quiz?.state === 'question_ended') && quiz?.currentQuestionId) {
@@ -206,6 +212,7 @@ export function QuizMasterView() {
     };
     
     const handleAirQuestion = async (questionId) => {
+        setAiredQuestionIds(prev => [...prev, questionId]);
         await updateDoc(doc(db, "quizzes", quizId), { state: 'question_live', currentQuestionId: questionId });
     };
 
@@ -335,7 +342,4 @@ export function QuizMasterView() {
                                             <span className="font-weight-bold mr-3">{index + 1}.</span>
                                             <span>{p.name}</span>
                                         </button>
-                                        <span className="badge badge-primary badge-pill p-2">{p.score} pts</span>
-                                    </li>
-                                ))}
-    
+                                        <span classN
