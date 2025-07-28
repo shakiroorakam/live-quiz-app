@@ -1,24 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db, auth } from '../firebase/config';
-import { onAuthStateChanged } from 'firebase/auth';
+import { db } from '../firebase/config';
 
-export function JoinQuizView() {
+// --- FIX: Component now accepts 'user' as a prop ---
+export function JoinQuizView({ user }) {
     const navigate = useNavigate();
-    const [user, setUser] = useState(null);
     const [userName, setUserName] = useState('');
     const [quizId, setQuizId] = useState('');
     const [joinError, setJoinError] = useState('');
     const [isJoining, setIsJoining] = useState(false);
-
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            setUser(currentUser);
-        });
-        return () => unsubscribe();
-    }, []);
 
     const handleJoin = async () => {
         setJoinError('');
@@ -93,3 +85,5 @@ export function JoinQuizView() {
         </div>
     );
 }
+
+        
