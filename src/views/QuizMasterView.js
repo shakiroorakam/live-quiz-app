@@ -7,7 +7,7 @@ import { CopyButton } from '../components/CopyButton';
 import { Navbar } from '../components/Navbar';
 import { MasterNav } from '../components/MasterNav';
 
-// --- Reusable Sub-Components ---
+// --- Reusable Sub-Components (Defined at the top level for stability) ---
 
 const QuestionsTab = ({ questions = [], handleAddQuestion, newQuestion, setNewQuestion }) => {
     const initialQuestionState = { type: 'mcq', text: '', options: ['', '', '', ''], correctAnswer: '', points: 10 };
@@ -125,17 +125,10 @@ const ParticipantDetailModal = ({ participant, answers, isLoading, onClose }) =>
     );
 };
 
-// --- THIS IS THE FIX ---
-// This new component isolates the complex logic that was causing the build to fail.
 const VerificationListItem = ({ ans, handleVerification }) => {
     const renderVerificationStatus = () => {
-        if (ans.isCorrect === true) {
-            return <CheckCircle className="text-success" size={24}/>;
-        }
-        if (ans.isCorrect === false) {
-            return <XCircle className="text-danger" size={24}/>;
-        }
-        // Default case: isCorrect is null
+        if (ans.isCorrect === true) return <CheckCircle className="text-success" size={24}/>;
+        if (ans.isCorrect === false) return <XCircle className="text-danger" size={24}/>;
         return (
             <div>
                 <button onClick={() => handleVerification(ans.id, true)} className="btn btn-sm btn-outline-success mr-2"><CheckCircle size={18}/></button>
@@ -143,7 +136,6 @@ const VerificationListItem = ({ ans, handleVerification }) => {
             </div>
         );
     };
-
     return (
         <li className="list-group-item d-flex justify-content-between align-items-center">
             <div>
@@ -349,4 +341,10 @@ export function QuizMasterView() {
                                         </button>
                                         <span className="badge badge-primary badge-pill p-2">{p.score} pts</span>
                                     </li>
-            
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+     
