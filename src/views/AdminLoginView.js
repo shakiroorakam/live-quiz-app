@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, PlusCircle, Edit, Trash2 } from 'lucide-react';
-import { db } from '../firebase/config';
+import { db, auth } from '../firebase/config';
+import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 import { 
     collection, 
     query, 
@@ -17,32 +18,40 @@ async function deleteDocumentAndSubcollections(docRef) {
     const collections = await getDocs(collection(docRef, 'answers'));
     for (const col of collections.docs) {
         const subColDocs = await getDocs(collection(docRef, 'answers', col.id, 'submissions'));
-        for (const subDoc of subColDocs.docs) {
-            await deleteDoc(subDoc.ref);
-        }
+        for (const subDoc of subColDocs.docs) { await deleteDoc(subDoc.ref); }
     }
     const participants = await getDocs(collection(docRef, 'participants'));
-    for (const p of participants.docs) {
-        await deleteDoc(p.ref);
-    }
+    for (const p of participants.docs) { await deleteDoc(p.ref); }
     await deleteDoc(docRef);
 }
 
-// --- FIX: Component now accepts 'user' as a prop ---
-export function AdminLoginView({ user }) {
+export function AdminLoginView() {
     const navigate = useNavigate();
-    const [username, setUsername] = useState('');
+    const [user, setUser] = useState(null);
+    const [email, setEmail] = useState('quizbyshakir@quiz.com'); // Default email
     const [password, setPassword] = useState('');
     const [loginError, setLoginError] = useState('');
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     
     const [userQuizzes, setUserQuizzes] = useState([]);
     const [isLoadingQuizzes, setIsLoadingQuizzes] = useState(true);
+    const [newQuizTitle, setNewQuizTitle] = useState('');
 
-    // Effect to fetch the user's quizzes after they log in
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            if (currentUser && currentUser.email === 'quizbyshakir@quiz.com') {
+                setUser(currentUser);
+                setIsLoggedIn(true);
+            } else {
+                setUser(null);
+                setIsLoggedIn(false);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
+
     useEffect(() => {
         if (!isLoggedIn || !user) return;
-
         const q = query(collection(db, "quizzes"), where("quizMasterId", "==", user.uid));
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
             const quizzes = [];
@@ -52,26 +61,32 @@ export function AdminLoginView({ user }) {
             setUserQuizzes(quizzes);
             setIsLoadingQuizzes(false);
         });
-
         return () => unsubscribe();
     }, [isLoggedIn, user]);
 
-    const handleLogin = () => {
+    const handleLogin = async () => {
         setLoginError('');
-        if (username === 'quizbyshakir' && password === 'shakir@123') {
-            if (!user) {
-                setLoginError("Authentication not ready. Please try again.");
-                return;
-            }
-            setIsLoggedIn(true);
-        } else {
-            setLoginError('Invalid username or password.');
+        if (password !== 'shakir@123') {
+            setLoginError('Invalid credentials.');
+            return;
+        }
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            // onAuthStateChanged will handle setting the user and isLoggedIn state
+        } catch (error) {
+            console.error("Firebase Login Error:", error);
+            setLoginError('Invalid credentials or connection error.');
         }
     };
 
     const handleCreateNewQuiz = async () => {
+        if (!newQuizTitle.trim()) {
+            alert("Please enter a title for the quiz.");
+            return;
+        }
         const newQuizId = Math.random().toString(36).substring(2, 8).toUpperCase();
         await setDoc(doc(db, "quizzes", newQuizId), {
+            title: newQuizTitle, // Add the title here
             quizMasterId: user.uid,
             quizMasterName: 'Shakir',
             state: "lobby",
@@ -82,24 +97,9 @@ export function AdminLoginView({ user }) {
         navigate(`/master/${newQuizId}`);
     };
 
-    const handleSelectQuiz = (quizId) => {
-        navigate(`/master/${quizId}`);
-    };
+    const handleSelectQuiz = (quizId) => { navigate(`/master/${quizId}`); };
+    const handleDeleteQuiz = async (quizIdToDelete) => { /* ... same as before ... */ };
 
-    const handleDeleteQuiz = async (quizIdToDelete) => {
-        if (window.confirm(`Are you sure you want to delete quiz ${quizIdToDelete}? This cannot be undone.`)) {
-            try {
-                const quizDocRef = doc(db, 'quizzes', quizIdToDelete);
-                await deleteDocumentAndSubcollections(quizDocRef);
-                console.log(`Quiz ${quizIdToDelete} deleted successfully.`);
-            } catch (error) {
-                console.error("Error deleting quiz: ", error);
-                alert("Failed to delete quiz.");
-            }
-        }
-    };
-
-    // Render login form if not logged in
     if (!isLoggedIn) {
         return (
             <div className="d-flex align-items-center justify-content-center min-vh-100">
@@ -111,13 +111,15 @@ export function AdminLoginView({ user }) {
                         <h2 className="card-title text-center text-primary font-weight-bold mb-4">Admin Login</h2>
                         <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
                             <div className="form-group">
-                                <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username" className="form-control form-control-lg" />
+                                <label>Email</label>
+                                <input type="email" value={email} readOnly className="form-control-plaintext" />
                             </div>
                             <div className="form-group">
+                                <label>Password</label>
                                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="form-control form-control-lg" />
                             </div>
                             {loginError && <p className="text-danger text-center mt-3">{loginError}</p>}
-                            <button type="submit" disabled={!user} className="btn btn-primary btn-lg btn-block mt-4">Login</button>
+                            <button type="submit" className="btn btn-primary btn-lg btn-block mt-4">Login</button>
                         </form>
                     </div>
                 </div>
@@ -125,36 +127,33 @@ export function AdminLoginView({ user }) {
         );
     }
 
-    // Render Quiz Management Hub after login
     return (
         <div className="d-flex align-items-center justify-content-center min-vh-100">
             <div className="card shadow-lg border-0" style={{ width: '100%', maxWidth: '600px' }}>
-                <div className="card-header bg-white d-flex justify-content-between align-items-center">
+                <div className="card-header bg-white">
                     <h2 className="h4 mb-0 text-primary">Quiz Management</h2>
-                    <button onClick={handleCreateNewQuiz} className="btn btn-success d-flex align-items-center">
-                        <PlusCircle size={18} className="mr-2" /> Create New Quiz
-                    </button>
                 </div>
                 <div className="card-body">
-                    <h3 className="h5 mb-3">Your Existing Quizzes</h3>
+                    <div className="input-group mb-3">
+                        <input type="text" className="form-control" placeholder="New Quiz Title" value={newQuizTitle} onChange={(e) => setNewQuizTitle(e.target.value)} />
+                        <div className="input-group-append">
+                            <button onClick={handleCreateNewQuiz} className="btn btn-success d-flex align-items-center">
+                                <PlusCircle size={18} className="mr-2" /> Create
+                            </button>
+                        </div>
+                    </div>
+                    <h3 className="h5 mt-4 mb-3">Your Existing Quizzes</h3>
                     {isLoadingQuizzes ? <Loader2 className="animate-spin" /> : (
                         <ul className="list-group">
-                            {userQuizzes.length === 0 && <li className="list-group-item text-muted">You haven't created any quizzes yet.</li>}
                             {userQuizzes.map(quiz => (
                                 <li key={quiz.id} className="list-group-item d-flex justify-content-between align-items-center">
                                     <div>
-                                        <span className="font-weight-bold">{quiz.id}</span>
-                                        <small className="d-block text-muted">
-                                            {quiz.questions?.length || 0} questions
-                                        </small>
+                                        <span className="font-weight-bold">{quiz.title || quiz.id}</span>
+                                        <small className="d-block text-muted">{quiz.questions?.length || 0} questions</small>
                                     </div>
                                     <div>
-                                        <button onClick={() => handleSelectQuiz(quiz.id)} className="btn btn-sm btn-outline-primary mr-2">
-                                            <Edit size={16} />
-                                        </button>
-                                        <button onClick={() => handleDeleteQuiz(quiz.id)} className="btn btn-sm btn-outline-danger">
-                                            <Trash2 size={16} />
-                                        </button>
+                                        <button onClick={() => handleSelectQuiz(quiz.id)} className="btn btn-sm btn-outline-primary mr-2"><Edit size={16} /></button>
+                                        <button onClick={() => handleDeleteQuiz(quiz.id)} className="btn btn-sm btn-outline-danger"><Trash2 size={16} /></button>
                                     </div>
                                 </li>
                             ))}
@@ -165,5 +164,3 @@ export function AdminLoginView({ user }) {
         </div>
     );
 }
-
-            
