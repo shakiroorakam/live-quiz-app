@@ -11,32 +11,44 @@ export function ParticipantView({ quizId, user }) {
     const [selectedOption, setSelectedOption] = useState(null); // For MCQ
     const [descriptiveAnswer, setDescriptiveAnswer] = useState(''); // For Descriptive
     
-    // --- FIX: Add a ref to track if auto-submission has occurred for the current question ---
     const autoSubmitRef = useRef(false);
+    const prevQuestionIdRef = useRef(null);
 
+    // Effect for fetching main quiz and participant data
     useEffect(() => {
         if (!quizId) return;
+
         const unsubQuiz = onSnapshot(doc(db, "quizzes", quizId), (doc) => {
-            const newQuizData = doc.data();
-            setQuiz(prevQuiz => {
-                // When a new question is aired, reset the state and the auto-submit tracker
-                if (prevQuiz && newQuizData.currentQuestionId !== prevQuiz.currentQuestionId) {
-                    setMyAnswer(null);
-                    setSelectedOption(null);
-                    setDescriptiveAnswer('');
-                    autoSubmitRef.current = false; // Reset for the new question
-                }
-                return newQuizData;
-            });
+            setQuiz(doc.data());
         });
+
         const unsubParticipants = onSnapshot(collection(db, `quizzes/${quizId}/participants`), (snap) => {
             const parts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             parts.sort((a, b) => b.score - a.score);
             setParticipants(parts);
         });
-        return () => { unsubQuiz(); unsubParticipants(); };
+
+        return () => { 
+            unsubQuiz(); 
+            unsubParticipants(); 
+        };
     }, [quizId]);
 
+    // --- FIX: Separated logic for handling NEW questions ---
+    // This effect runs only when the current question ID changes.
+    useEffect(() => {
+        if (quiz?.currentQuestionId && quiz.currentQuestionId !== prevQuestionIdRef.current) {
+            // A new question has been aired, so reset everything.
+            setMyAnswer(null);
+            setSelectedOption(null);
+            setDescriptiveAnswer('');
+            autoSubmitRef.current = false;
+            prevQuestionIdRef.current = quiz.currentQuestionId;
+        }
+    }, [quiz?.currentQuestionId]);
+
+
+    // Effect for fetching the user's answer to the current question
     useEffect(() => {
         if (quiz?.currentQuestionId && user) {
             const answerDocPath = `quizzes/${quizId}/answers/${quiz.currentQuestionId}/submissions/${user.uid}`;
@@ -57,7 +69,7 @@ export function ParticipantView({ quizId, user }) {
         if (currentQuestion.type === 'mcq') {
             if (selectedOption === null) return;
             answerToSubmit = currentQuestion.options[selectedOption];
-        } else { // Descriptive
+        } else {
             if (descriptiveAnswer.trim() === '') return;
             answerToSubmit = descriptiveAnswer;
         }
@@ -133,15 +145,13 @@ export function ParticipantView({ quizId, user }) {
         }
 
         if (quiz?.state === 'question_ended' && currentQuestion) {
-            // --- FIX: Auto-submit logic when time ends ---
             if (!myAnswer && !autoSubmitRef.current) {
                 const hasMcqAnswer = currentQuestion.type === 'mcq' && selectedOption !== null;
                 const hasDescAnswer = currentQuestion.type === 'descriptive' && descriptiveAnswer.trim() !== '';
 
                 if (hasMcqAnswer || hasDescAnswer) {
-                    autoSubmitRef.current = true; // Prevent multiple submissions
+                    autoSubmitRef.current = true;
                     handleSubmitAnswer();
-                    // Show a submitting message while waiting for the answer to be saved and re-fetched
                     return (
                         <div className="text-center">
                             <h2 className="display-4">Time's Up!</h2>
@@ -219,3 +229,5 @@ export function ParticipantView({ quizId, user }) {
         </div>
     );
 }
+
+                                         
