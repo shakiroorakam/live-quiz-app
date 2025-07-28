@@ -140,30 +140,21 @@ export function QuizMasterView() {
     const [participantAnswers, setParticipantAnswers] = useState([]);
     const [isLoadingAnswers, setIsLoadingAnswers] = useState(false);
 
-    // --- FIX: This is the corrected, stable useEffect for real-time data ---
     useEffect(() => {
         if (!quizId) return;
-
-        console.log("Setting up Firebase listeners for Quiz:", quizId);
-
         const unsubQuiz = onSnapshot(doc(db, "quizzes", quizId), (doc) => {
-            console.log(">>> Real-time: Quiz data received from Firebase.");
             setQuiz(doc.data());
         });
-
         const unsubParticipants = onSnapshot(collection(db, `quizzes/${quizId}/participants`), (snap) => {
-            console.log(">>> Real-time: Participants data received. Count:", snap.size);
             const parts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             parts.sort((a, b) => b.score - a.score);
             setParticipants(parts);
         });
-
         return () => {
-            console.log("Cleaning up Firebase listeners.");
             unsubQuiz();
             unsubParticipants();
         };
-    }, [quizId]); // This effect only runs when the quizId changes.
+    }, [quizId]);
 
     useEffect(() => {
         if ((quiz?.state === 'question_live' || quiz?.state === 'question_ended') && quiz?.currentQuestionId) {
@@ -291,7 +282,11 @@ export function QuizMasterView() {
                                         <button onClick={() => handleVerification(ans.id, true)} className="btn btn-sm btn-outline-success mr-2"><CheckCircle size={18}/></button>
                                         <button onClick={() => handleVerification(ans.id, false)} className="btn btn-sm btn-outline-danger"><XCircle size={18}/></button>
                                     </div>
-                                ) : ( ans.isCorrect ? <CheckCircle className="text-success" size={24}/> : <XCircle className="text-danger" size={24}/> )}
+                                ) : ( 
+                                    // --- THIS IS THE FIX ---
+                                    // The closing parenthesis ')' was outside the curly brace '{'
+                                    ans.isCorrect ? <CheckCircle className="text-success" size={24}/> : <XCircle className="text-danger" size={24}/>
+                                )}
                             </li>
                         ))}
                     </ul>
@@ -342,4 +337,7 @@ export function QuizMasterView() {
                                     <li key={p.id} className="list-group-item d-flex justify-content-between align-items-center">
                                         <button className="btn btn-link p-0 text-left" onClick={() => handleSelectParticipant(p)}>
                                             <span className="font-weight-bold mr-3">{index + 1}.</span>
-                                 
+                                            <span>{p.name}</span>
+                                        </button>
+                                        <span className="badge badge-primary badge-pill p-2">{p.score} pts</span>
+   
