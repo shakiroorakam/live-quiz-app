@@ -89,16 +89,13 @@ const ParticipantsTab = ({ participants, handleDeleteParticipant, handleSelectPa
 
 const ParticipantDetailModal = ({ participant, answers, isLoading, onClose }) => {
     if (!participant) return null;
-
     return (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
             <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
                 <div className="modal-content">
                     <div className="modal-header">
                         <h5 className="modal-title">{participant.name}'s Answers</h5>
-                        <button type="button" className="close" onClick={onClose}>
-                            <span>&times;</span>
-                        </button>
+                        <button type="button" className="close" onClick={onClose}><span>&times;</span></button>
                     </div>
                     <div className="modal-body">
                         {isLoading ? <div className="text-center"><Loader2 className="animate-spin" /></div> : (
@@ -139,7 +136,6 @@ export function QuizMasterView() {
     const [newQuestion, setNewQuestion] = useState({ type: 'mcq', text: '', options: ['', '', '', ''], correctAnswer: '', points: 10 });
     const [activeTab, setActiveTab] = useState('start');
     const [airedQuestionIds, setAiredQuestionIds] = useState([]);
-    
     const [selectedParticipant, setSelectedParticipant] = useState(null);
     const [participantAnswers, setParticipantAnswers] = useState([]);
     const [isLoadingAnswers, setIsLoadingAnswers] = useState(false);
@@ -178,15 +174,12 @@ export function QuizMasterView() {
             setParticipantAnswers([]);
             return;
         }
-
         const fetchAnswers = async () => {
             setIsLoadingAnswers(true);
             const questionsAnswered = quiz.questions;
-            
             const answerPromises = questionsAnswered.map(async (question) => {
                 const answerDocRef = doc(db, `quizzes/${quizId}/answers/${question.id}/submissions`, selectedParticipant.id);
                 const answerSnap = await getDoc(answerDocRef);
-                
                 return {
                     questionText: question.text,
                     points: question.points,
@@ -194,12 +187,10 @@ export function QuizMasterView() {
                     isCorrect: answerSnap.exists() ? answerSnap.data().isCorrect : null,
                 };
             });
-
             const resolvedAnswers = await Promise.all(answerPromises);
             setParticipantAnswers(resolvedAnswers);
             setIsLoadingAnswers(false);
         };
-
         fetchAnswers();
     }, [selectedParticipant, quiz?.questions, quizId]);
 
@@ -344,4 +335,7 @@ export function QuizMasterView() {
                                             <span className="font-weight-bold mr-3">{index + 1}.</span>
                                             <span>{p.name}</span>
                                         </button>
-                                        <span className="badge badge-primary badge-pill p-2">{p.score} 
+                                        <span className="badge badge-primary badge-pill p-2">{p.score} pts</span>
+                                    </li>
+                                ))}
+    
