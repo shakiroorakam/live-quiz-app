@@ -7,7 +7,7 @@ import { CopyButton } from '../components/CopyButton';
 import { Navbar } from '../components/Navbar';
 import { MasterNav } from '../components/MasterNav';
 
-// --- Reusable Components within QuizMasterView ---
+// --- Reusable Sub-Components ---
 
 const QuestionsTab = ({ questions = [], handleAddQuestion, newQuestion, setNewQuestion }) => {
     const initialQuestionState = { type: 'mcq', text: '', options: ['', '', '', ''], correctAnswer: '', points: 10 };
@@ -125,6 +125,36 @@ const ParticipantDetailModal = ({ participant, answers, isLoading, onClose }) =>
     );
 };
 
+// --- THIS IS THE FIX ---
+// This new component isolates the complex logic that was causing the build to fail.
+const VerificationListItem = ({ ans, handleVerification }) => {
+    const renderVerificationStatus = () => {
+        if (ans.isCorrect === true) {
+            return <CheckCircle className="text-success" size={24}/>;
+        }
+        if (ans.isCorrect === false) {
+            return <XCircle className="text-danger" size={24}/>;
+        }
+        // Default case: isCorrect is null
+        return (
+            <div>
+                <button onClick={() => handleVerification(ans.id, true)} className="btn btn-sm btn-outline-success mr-2"><CheckCircle size={18}/></button>
+                <button onClick={() => handleVerification(ans.id, false)} className="btn btn-sm btn-outline-danger"><XCircle size={18}/></button>
+            </div>
+        );
+    };
+
+    return (
+        <li className="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+                <p className="font-weight-bold mb-0">{ans.participantName}</p>
+                <p className="text-muted mb-0" style={{whiteSpace: 'pre-wrap'}}>{ans.answer}</p>
+            </div>
+            {renderVerificationStatus()}
+        </li>
+    );
+};
+
 
 // --- Main QuizMasterView Component ---
 
@@ -142,18 +172,13 @@ export function QuizMasterView() {
 
     useEffect(() => {
         if (!quizId) return;
-        const unsubQuiz = onSnapshot(doc(db, "quizzes", quizId), (doc) => {
-            setQuiz(doc.data());
-        });
+        const unsubQuiz = onSnapshot(doc(db, "quizzes", quizId), (doc) => { setQuiz(doc.data()); });
         const unsubParticipants = onSnapshot(collection(db, `quizzes/${quizId}/participants`), (snap) => {
             const parts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             parts.sort((a, b) => b.score - a.score);
             setParticipants(parts);
         });
-        return () => {
-            unsubQuiz();
-            unsubParticipants();
-        };
+        return () => { unsubQuiz(); unsubParticipants(); };
     }, [quizId]);
 
     useEffect(() => {
@@ -163,9 +188,7 @@ export function QuizMasterView() {
                 setAnswers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             });
             return () => unsubAnswers();
-        } else {
-            setAnswers([]);
-        }
+        } else { setAnswers([]); }
     }, [quiz?.state, quiz?.currentQuestionId, quizId]);
 
     useEffect(() => {
@@ -272,22 +295,7 @@ export function QuizMasterView() {
                      <ul className="list-group list-group-flush">
                         {answers.length === 0 && <li className="list-group-item text-muted">No answers submitted.</li>}
                         {answers.map(ans => (
-                            <li key={ans.id} className="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <p className="font-weight-bold mb-0">{ans.participantName}</p>
-                                    <p className="text-muted mb-0" style={{whiteSpace: 'pre-wrap'}}>{ans.answer}</p>
-                                </div>
-                                {/* --- THIS IS THE FIX --- */}
-                                {/* This simplified JSX block is much safer for the build process. */}
-                                {ans.isCorrect === null &&
-                                    <div>
-                                        <button onClick={() => handleVerification(ans.id, true)} className="btn btn-sm btn-outline-success mr-2"><CheckCircle size={18}/></button>
-                                        <button onClick={() => handleVerification(ans.id, false)} className="btn btn-sm btn-outline-danger"><XCircle size={18}/></button>
-                                    </div>
-                                }
-                                {ans.isCorrect === true && <CheckCircle className="text-success" size={24}/>}
-                                {ans.isCorrect === false && <XCircle className="text-danger" size={24}/>}
-                            </li>
+                            <VerificationListItem key={ans.id} ans={ans} handleVerification={handleVerification} />
                         ))}
                     </ul>
                     <div className="card-footer bg-white text-right">
@@ -339,4 +347,6 @@ export function QuizMasterView() {
                                             <span className="font-weight-bold mr-3">{index + 1}.</span>
                                             <span>{p.name}</span>
                                         </button>
-                                        <span className="badge badge-primary badge-pil
+                                        <span className="badge badge-primary badge-pill p-2">{p.score} pts</span>
+                                    </li>
+            
