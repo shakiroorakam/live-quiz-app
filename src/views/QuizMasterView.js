@@ -1,6 +1,6 @@
-import React, 'useState', 'useEffect' from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { onSnapshot, doc, collection, updateDoc, writeBatch, deleteDoc, getDoc } from 'firebase/firestore';
+import { onSnapshot, doc, collection, updateDoc, writeBatch, deleteDoc, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { BarChart2, CheckCircle, XCircle, PlusCircle, Send, Users, HelpCircle, Trash2, Loader2 } from 'lucide-react';
 import { CopyButton } from '../components/CopyButton';
@@ -87,7 +87,6 @@ const ParticipantsTab = ({ participants, handleDeleteParticipant, handleSelectPa
     </div>
 );
 
-// --- NEW: Modal to show a participant's detailed answers ---
 const ParticipantDetailModal = ({ participant, answers, isLoading, onClose }) => {
     if (!participant) return null;
 
@@ -141,7 +140,6 @@ export function QuizMasterView() {
     const [activeTab, setActiveTab] = useState('start');
     const [airedQuestionIds, setAiredQuestionIds] = useState([]);
     
-    // State for the new participant detail modal
     const [selectedParticipant, setSelectedParticipant] = useState(null);
     const [participantAnswers, setParticipantAnswers] = useState([]);
     const [isLoadingAnswers, setIsLoadingAnswers] = useState(false);
@@ -175,7 +173,6 @@ export function QuizMasterView() {
         }
     }, [quiz?.state, quiz?.currentQuestionId, quizId]);
 
-    // --- NEW: Effect to fetch all answers for a selected participant ---
     useEffect(() => {
         if (!selectedParticipant || !quiz?.questions) {
             setParticipantAnswers([]);
@@ -184,7 +181,7 @@ export function QuizMasterView() {
 
         const fetchAnswers = async () => {
             setIsLoadingAnswers(true);
-            const questionsAnswered = quiz.questions; // Check all questions
+            const questionsAnswered = quiz.questions;
             
             const answerPromises = questionsAnswered.map(async (question) => {
                 const answerDocRef = doc(db, `quizzes/${quizId}/answers/${question.id}/submissions`, selectedParticipant.id);
@@ -206,19 +203,110 @@ export function QuizMasterView() {
         fetchAnswers();
     }, [selectedParticipant, quiz?.questions, quizId]);
 
-    const handleAddQuestion = async () => { /* ... same as before ... */ };
-    const handleAirQuestion = async (questionId) => { /* ... same as before ... */ };
-    const handleEndQuestion = async () => { /* ... same as before ... */ };
-    const handleFinishVerification = async () => { /* ... same as before ... */ };
-    const handleVerification = async (participantId, isCorrect) => { /* ... same as before ... */ };
-    const handleDeleteParticipant = async (participantId, participantName) => { /* ... same as before ... */ };
+    const handleAddQuestion = async () => {
+        const questionId = Math.random().toString(36).substring(2, 12);
+        const questionToAdd = { ...newQuestion, id: questionId };
+        if (questionToAdd.type === 'descriptive') {
+            delete questionToAdd.options;
+            delete questionToAdd.correctAnswer;
+        }
+        const updatedQuestions = [...(quiz?.questions || []), questionToAdd];
+        await updateDoc(doc(db, "quizzes", quizId), { questions: updatedQuestions });
+    };
+    
+    const handleAirQuestion = async (questionId) => {
+        await updateDoc(doc(db, "quizzes", quizId), { state: 'question_live', currentQuestionId: questionId });
+    };
+
+    const handleEndQuestion = async () => {
+        await updateDoc(doc(db, "quizzes", quizId), { state: 'question_ended' });
+    };
+    
+    const handleFinishVerification = async () => {
+        await updateDoc(doc(db, "quizzes", quizId), { state: 'lobby', currentQuestionId: null });
+        setActiveTab('start');
+    };
+
+    const handleVerification = async (participantId, isCorrect) => {
+        const batch = writeBatch(db);
+        const answerRef = doc(db, `quizzes/${quizId}/answers/${quiz.currentQuestionId}/submissions`, participantId);
+        batch.update(answerRef, { isCorrect });
+        if (isCorrect) {
+            const participantRef = doc(db, `quizzes/${quizId}/participants`, participantId);
+            const currentQuestion = quiz.questions.find(q => q.id === quiz.currentQuestionId);
+            const participant = participants.find(p => p.id === participantId);
+            if(participant && currentQuestion) {
+                const newScore = (participant.score || 0) + (currentQuestion.points || 0);
+                batch.update(participantRef, { score: newScore });
+            }
+        }
+        await batch.commit();
+    };
+    
+    const handleDeleteParticipant = async (participantId, participantName) => {
+        if (window.confirm(`Are you sure you want to remove ${participantName} from the quiz?`)) {
+            try {
+                const participantRef = doc(db, `quizzes/${quizId}/participants`, participantId);
+                await deleteDoc(participantRef);
+            } catch (error) {
+                console.error("Error deleting participant: ", error);
+                alert("Failed to delete participant.");
+            }
+        }
+    };
     
     const handleSelectParticipant = (participant) => {
         setSelectedParticipant(participant);
     };
 
     const currentQuestion = quiz?.questions.find(q => q.id === quiz.currentQuestionId);
-    const renderMainContent = () => { /* ... same as before, but pass handleSelectParticipant to ParticipantsTab ... */ };
+
+    const renderMainContent = () => {
+        if (quiz?.state === 'question_live' && currentQuestion) {
+            return (
+                <div className="card shadow-sm mb-4 border-primary">
+                    <div className="card-header bg-primary text-white h5">Live Question</div>
+                    <div className="card-body text-center">
+                        <h2 className="text-dark">{currentQuestion.text}</h2>
+                        <p className="text-muted">{answers.length} response(s) received</p>
+                        <button onClick={handleEndQuestion} className="btn btn-danger btn-lg mt-3">End Time for this Question</button>
+                    </div>
+                </div>
+            );
+        }
+        if (quiz?.state === 'question_ended' && currentQuestion) {
+            return (
+                <div className="card shadow-sm mb-4 border-0">
+                    <div className="card-header bg-white h5">Verify Answers: <span className="text-primary">{currentQuestion.text}</span></div>
+                     <ul className="list-group list-group-flush">
+                        {answers.length === 0 && <li className="list-group-item text-muted">No answers submitted.</li>}
+                        {answers.map(ans => (
+                            <li key={ans.id} className="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <p className="font-weight-bold mb-0">{ans.participantName}</p>
+                                    <p className="text-muted mb-0" style={{whiteSpace: 'pre-wrap'}}>{ans.answer}</p>
+                                </div>
+                                {ans.isCorrect === null ? (
+                                    <div>
+                                        <button onClick={() => handleVerification(ans.id, true)} className="btn btn-sm btn-outline-success mr-2"><CheckCircle size={18}/></button>
+                                        <button onClick={() => handleVerification(ans.id, false)} className="btn btn-sm btn-outline-danger"><XCircle size={18}/></button>
+                                    </div>
+                                ) : ( ans.isCorrect ? <CheckCircle className="text-success" size={24}/> : <XCircle className="text-danger" size={24}/> )}
+                            </li>
+                        ))}
+                    </ul>
+                    <div className="card-footer bg-white text-right">
+                        <button onClick={handleFinishVerification} className="btn btn-primary">Finish Verification & Return</button>
+                    </div>
+                </div>
+            );
+        }
+        switch (activeTab) {
+            case 'questions': return <QuestionsTab questions={quiz?.questions} handleAddQuestion={handleAddQuestion} newQuestion={newQuestion} setNewQuestion={setNewQuestion} />;
+            case 'participants': return <ParticipantsTab participants={participants} handleDeleteParticipant={handleDeleteParticipant} handleSelectParticipant={handleSelectParticipant} />;
+            case 'start': default: return <StartQuizTab questions={quiz?.questions} airedQuestionIds={airedQuestionIds} handleAirQuestion={handleAirQuestion} />;
+        }
+    };
 
     return (
         <>
@@ -232,7 +320,17 @@ export function QuizMasterView() {
             <div className="container-fluid" style={{ paddingTop: '80px' }}>
                 <div className="row">
                     <div className="col-lg-8">
-                        {/* ... Header card ... */}
+                        <div className="card shadow-sm mb-4 border-0">
+                            <div className="card-body d-flex justify-content-between align-items-center">
+                                <div>
+                                   <h1 className="card-title text-primary h3">Quiz Master Dashboard</h1>
+                                   <div className="d-flex align-items-center text-muted">
+                                       <span>Quiz ID: <span className="font-weight-bold text-success">{quizId}</span></span>
+                                       <CopyButton text={quizId} />
+                                   </div>
+                                </div>
+                            </div>
+                        </div>
                         <MasterNav activeTab={activeTab} setActiveTab={setActiveTab} quizState={quiz?.state} />
                         {renderMainContent()}
                     </div>
@@ -242,21 +340,8 @@ export function QuizMasterView() {
                             <ul className="list-group list-group-flush">
                                 {participants.map((p, index) => (
                                     <li key={p.id} className="list-group-item d-flex justify-content-between align-items-center">
-                                        {/* --- FIX: Made scoreboard names clickable --- */}
                                         <button className="btn btn-link p-0 text-left" onClick={() => handleSelectParticipant(p)}>
                                             <span className="font-weight-bold mr-3">{index + 1}.</span>
                                             <span>{p.name}</span>
                                         </button>
-                                        <span className="badge badge-primary badge-pill p-2">{p.score} pts</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </>
-    );
-}
-
-        
+                                        <span className="badge badge-primary badge-pill p-2">{p.score} 
