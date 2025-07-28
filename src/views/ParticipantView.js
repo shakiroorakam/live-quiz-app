@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { onSnapshot, doc, collection, setDoc } from 'firebase/firestore';
+import { onSnapshot, doc, collection, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db, auth } from '../firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 import { BarChart2 } from 'lucide-react';
 import { Spinner } from '../components/Spinner';
 
 export function ParticipantView() {
-    const { quizId } = useParams(); // Get quizId from the URL
+    const { quizId } = useParams();
     const [user, setUser] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
 
@@ -20,7 +20,6 @@ export function ParticipantView() {
     const autoSubmitRef = useRef(false);
     const prevQuestionIdRef = useRef(null);
 
-    // Effect to get the current authenticated user
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             setUser(currentUser);
@@ -29,27 +28,22 @@ export function ParticipantView() {
         return () => unsubscribe();
     }, []);
 
-    // Effect for fetching main quiz and participant data
     useEffect(() => {
         if (!quizId) return;
-
         const unsubQuiz = onSnapshot(doc(db, "quizzes", quizId), (doc) => {
             setQuiz(doc.data());
         });
-
         const unsubParticipants = onSnapshot(collection(db, `quizzes/${quizId}/participants`), (snap) => {
             const parts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             parts.sort((a, b) => b.score - a.score);
             setParticipants(parts);
         });
-
         return () => { 
             unsubQuiz(); 
             unsubParticipants(); 
         };
     }, [quizId]);
 
-    // Effect for handling NEW questions
     useEffect(() => {
         if (quiz?.currentQuestionId && quiz.currentQuestionId !== prevQuestionIdRef.current) {
             setMyAnswer(null);
@@ -60,7 +54,6 @@ export function ParticipantView() {
         }
     }, [quiz?.currentQuestionId]);
 
-    // Effect for fetching the user's answer to the current question
     useEffect(() => {
         if (quiz?.currentQuestionId && user) {
             const answerDocPath = `quizzes/${quizId}/answers/${quiz.currentQuestionId}/submissions/${user.uid}`;
@@ -86,12 +79,27 @@ export function ParticipantView() {
             answerToSubmit = descriptiveAnswer;
         }
         
+        const isCorrect = currentQuestion.type === 'mcq' ? (answerToSubmit === currentQuestion.correctAnswer) : null;
+        
+        const batch = writeBatch(db);
+
         const answerDocPath = `quizzes/${quizId}/answers/${currentQuestion.id}/submissions/${user.uid}`;
-        await setDoc(doc(db, answerDocPath), {
+        const answerRef = doc(db, answerDocPath);
+        batch.set(answerRef, {
             answer: answerToSubmit,
             participantName: me.name,
-            isCorrect: currentQuestion.type === 'mcq' ? (answerToSubmit === currentQuestion.correctAnswer) : null,
+            isCorrect: isCorrect,
         });
+
+        // --- THIS IS THE FIX ---
+        // If the question is an MCQ and the answer is correct, update the score immediately.
+        if (currentQuestion.type === 'mcq' && isCorrect) {
+            const participantRef = doc(db, `quizzes/${quizId}/participants`, user.uid);
+            const newScore = (me.score || 0) + (currentQuestion.points || 0);
+            batch.update(participantRef, { score: newScore });
+        }
+        
+        await batch.commit();
     };
 
     const currentQuestion = quiz?.questions.find(q => q.id === quiz.currentQuestionId);
@@ -208,7 +216,6 @@ export function ParticipantView() {
         );
     };
 
-    // Show a spinner while authenticating or if the quiz data hasn't loaded yet.
     if (authLoading || !quiz) {
         return (
             <div className="d-flex align-items-center justify-content-center min-vh-100">
@@ -250,5 +257,3 @@ export function ParticipantView() {
         </div>
     );
 }
-
-            
