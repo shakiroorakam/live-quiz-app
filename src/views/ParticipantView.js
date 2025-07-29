@@ -32,16 +32,28 @@ export function ParticipantView() {
 
     useEffect(() => {
         if (!quizId || !user) return;
-        const unsubQuiz = onSnapshot(doc(db, "quizzes", quizId), (doc) => { setQuiz(doc.data()); });
+
+        const unsubQuiz = onSnapshot(doc(db, "quizzes", quizId), (doc) => {
+            setQuiz(doc.data());
+        });
+
         const unsubParticipants = onSnapshot(collection(db, `quizzes/${quizId}/participants`), (snap) => {
-            const parts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const parts = snap.docs.map(pDoc => ({ id: pDoc.id, ...pDoc.data() }));
             parts.sort((a, b) => b.score - a.score);
             setParticipants(parts);
         });
+
         const unsubMyData = onSnapshot(doc(db, `quizzes/${quizId}/participants`, user.uid), (doc) => {
-            if (doc.exists()) { setMyParticipantData({ id: doc.id, ...doc.data() }); }
+            if (doc.exists()) {
+                setMyParticipantData({ id: doc.id, ...doc.data() });
+            }
         });
-        return () => { unsubQuiz(); unsubParticipants(); unsubMyData(); };
+
+        return () => { 
+            unsubQuiz(); 
+            unsubParticipants();
+            unsubMyData();
+        };
     }, [quizId, user]);
 
     useEffect(() => {
@@ -50,7 +62,7 @@ export function ParticipantView() {
             setSelectedOption(null);
             setDescriptiveAnswer('');
             autoSubmitRef.current = false;
-            penaltyAppliedRef.current = false; // Reset penalty tracker for new question
+            penaltyAppliedRef.current = false;
             prevQuestionIdRef.current = quiz.currentQuestionId;
         }
     }, [quiz?.currentQuestionId]);
@@ -65,14 +77,12 @@ export function ParticipantView() {
         }
     }, [quiz?.currentQuestionId, user, quizId]);
 
-    // --- NEW: Anti-Browsing/Cheating Effect ---
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (document.hidden) {
-                // Check if a question is live, user hasn't answered, and penalty hasn't been applied
                 if (quiz?.state === 'question_live' && !myAnswer && !penaltyAppliedRef.current) {
                     console.log("User navigated away. Applying penalty.");
-                    penaltyAppliedRef.current = true; // Mark penalty as applied
+                    penaltyAppliedRef.current = true;
                     handlePenaltySubmit();
                 }
             }
@@ -81,7 +91,7 @@ export function ParticipantView() {
         return () => {
             document.removeEventListener("visibilitychange", handleVisibilityChange);
         };
-    }, [quiz, myAnswer]); // Rerun when quiz state or answer status changes
+    }, [quiz, myAnswer]);
 
     const handlePenaltySubmit = async () => {
         if (!user || !myParticipantData) return;
@@ -92,22 +102,70 @@ export function ParticipantView() {
         await setDoc(doc(db, answerDocPath), {
             answer: "Navigated away from quiz",
             participantName: myParticipantData.name,
-            isCorrect: false, // Automatically incorrect
+            isCorrect: false,
         });
     };
 
-    const handleSubmitAnswer = async () => { /* ... same as before ... */ };
+    const handleSubmitAnswer = async () => {
+        if (!user || !myParticipantData) return;
+        const currentQuestion = quiz.questions.find(q => q.id === quiz.currentQuestionId);
+        if (!currentQuestion) return;
+
+        let answerToSubmit = '';
+        if (currentQuestion.type === 'mcq') {
+            if (selectedOption === null) return;
+            answerToSubmit = currentQuestion.options[selectedOption];
+        } else {
+            if (descriptiveAnswer.trim() === '') return;
+            answerToSubmit = descriptiveAnswer;
+        }
+        
+        const isCorrect = currentQuestion.type === 'mcq' ? (answerToSubmit === currentQuestion.correctAnswer) : null;
+        
+        const batch = writeBatch(db);
+
+        const answerDocPath = `quizzes/${quizId}/answers/${currentQuestion.id}/submissions/${user.uid}`;
+        const answerRef = doc(db, answerDocPath);
+        batch.set(answerRef, {
+            answer: answerToSubmit,
+            participantName: myParticipantData.name,
+            isCorrect: isCorrect,
+        });
+
+        if (currentQuestion.type === 'mcq' && isCorrect) {
+            const participantRef = doc(db, `quizzes/${quizId}/participants`, user.uid);
+            batch.update(participantRef, { score: increment(currentQuestion.points || 0) });
+        }
+        
+        await batch.commit();
+    };
+
     const currentQuestion = quiz?.questions.find(q => q.id === quiz.currentQuestionId);
 
     const renderContent = () => {
-        // ... lobby and other states remain the same ...
+        if (quiz?.state === 'lobby') {
+            return (
+                <div className="text-center">
+                    <h2 className="display-4">Welcome to the Quiz!</h2>
+                    <p className="lead text-muted">The Quiz Master is preparing the questions. Please wait...</p>
+                    <Spinner />
+                </div>
+            );
+        }
 
         if (quiz?.state === 'question_live' && currentQuestion) {
-            if (myAnswer) { /* ... same as before ... */ }
+            if (myAnswer) {
+                return (
+                    <div className="text-center">
+                        <h2 className="display-4">Answer Submitted!</h2>
+                        <p className="lead text-muted">Waiting for the Quiz Master to end the question.</p>
+                        <div className="mt-4"><Spinner text="Waiting..." /></div>
+                    </div>
+                );
+            }
             return (
                 <div>
                     <p className="text-right text-primary font-weight-bold">{currentQuestion.points} points</p>
-                    {/* --- THIS IS THE FIX: Added style to prevent copying --- */}
                     <h2 className="h1 text-center mb-4" style={{ userSelect: 'none' }}>{currentQuestion.text}</h2>
                     
                     {currentQuestion.type === 'mcq' ? (
@@ -117,29 +175,124 @@ export function ParticipantView() {
                                     <button 
                                         onClick={() => setSelectedOption(i)}
                                         className={`btn btn-lg btn-block text-left ${selectedOption === i ? 'btn-primary' : 'btn-outline-primary'}`}
-                                        style={{ userSelect: 'none' }} // Prevent copying option text
+                                        style={{ userSelect: 'none' }}
                                     >
                                         {opt}
                                     </button>
                                 </div>
                             ))}
                         </div>
-                    ) : ( /* ... descriptive answer textarea ... */ )}
+                    ) : (
+                        <div className="form-group">
+                            <textarea 
+                                className="form-control" 
+                                rows="5" 
+                                placeholder="Type your answer here..."
+                                value={descriptiveAnswer}
+                                onChange={(e) => setDescriptiveAnswer(e.target.value)}
+                            ></textarea>
+                        </div>
+                    )}
 
                     <div className="text-right mt-4">
-                        <button onClick={handleSubmitAnswer} className="btn btn-success btn-lg">Submit Answer</button>
+                        <button onClick={handleSubmitAnswer} className="btn btn-success btn-lg">
+                            Submit Answer
+                        </button>
                     </div>
                 </div>
             );
         }
-        // ... other render states remain the same ...
+
+        if (quiz?.state === 'question_ended' && currentQuestion) {
+            if (!myAnswer && !autoSubmitRef.current) {
+                const hasMcqAnswer = currentQuestion.type === 'mcq' && selectedOption !== null;
+                const hasDescAnswer = currentQuestion.type === 'descriptive' && descriptiveAnswer.trim() !== '';
+
+                if (hasMcqAnswer || hasDescAnswer) {
+                    autoSubmitRef.current = true;
+                    handleSubmitAnswer();
+                    return (
+                        <div className="text-center">
+                            <h2 className="display-4">Time's Up!</h2>
+                            <p className="lead text-muted">Submitting your answer automatically...</p>
+                            <div className="mt-4"><Spinner /></div>
+                        </div>
+                    );
+                }
+            }
+
+            let resultMessage = "Waiting for verification...";
+            let alertClass = "alert-info";
+            if (myAnswer?.isCorrect === true) {
+                resultMessage = `Correct! +${currentQuestion.points} points`;
+                alertClass = "alert-success";
+            } else if (myAnswer?.isCorrect === false) {
+                resultMessage = `Incorrect!`;
+                if(currentQuestion.type === 'mcq') {
+                    resultMessage += ` The correct answer was: ${currentQuestion.correctAnswer}`;
+                }
+                alertClass = "alert-danger";
+            } else if (!myAnswer) {
+                resultMessage = "You didn't answer this question.";
+                alertClass = "alert-warning";
+            }
+
+            return (
+                <div className={`alert ${alertClass} text-center`}>
+                    <h2 className="h1">{resultMessage}</h2>
+                    <p className="lead">Waiting for the next question from the Quiz Master.</p>
+                     <div className="mt-4"><Spinner text="Waiting..." /></div>
+                </div>
+            );
+        }
+
+        return (
+            <div className="text-center">
+                <h2 className="display-4">Quiz Lobby</h2>
+                <p className="lead text-muted">Waiting for the Quiz Master...</p>
+                 <div className="mt-4"><Spinner /></div>
+            </div>
+        );
     };
 
-    if (authLoading || !quiz) { /* ... same as before ... */ }
+    if (authLoading || !quiz) {
+        return (
+            <div className="d-flex align-items-center justify-content-center min-vh-100">
+                <Spinner text="Loading Quiz..." />
+            </div>
+        );
+    }
 
     return (
         <div className="container" style={{ maxWidth: '800px' }}>
-            {/* ... header and scoreboard remain the same ... */}
+            <div className="d-flex justify-content-between align-items-center my-4">
+                <h1 className="h3">{quiz?.title || `${quiz?.quizMasterName}'s Quiz`}</h1>
+                <div className="text-right">
+                    <p className="h4 font-weight-bold text-primary mb-0">{myParticipantData?.score || 0} pts</p>
+                    <p className="text-muted mb-0">Your Score</p>
+                </div>
+            </div>
+
+            <div className="card shadow-sm border-0">
+                <div className="card-body p-4 p-md-5" style={{ minHeight: '30rem' }}>
+                    {renderContent()}
+                </div>
+            </div>
+            
+            <div className="card shadow-sm border-0 mt-4">
+                <div className="card-header bg-white h5"><BarChart2 className="mr-2 text-primary"/>Scoreboard</div>
+                <ul className="list-group list-group-flush">
+                    {participants.map((p, index) => (
+                        <li key={p.id} className={`list-group-item d-flex justify-content-between align-items-center ${p.id === user?.id ? 'bg-primary text-white' : ''}`}>
+                            <div>
+                                <span className="font-weight-bold mr-3">{index + 1}.</span>
+                                <span>{p.name}</span>
+                            </div>
+                            <span className={`badge ${p.id === user?.id ? 'badge-light' : 'badge-primary'} badge-pill p-2`}>{p.score} pts</span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
         </div>
     );
 }
