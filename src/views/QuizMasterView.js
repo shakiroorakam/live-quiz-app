@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { onSnapshot, doc, collection, updateDoc, writeBatch, deleteDoc, getDocs } from 'firebase/firestore';
+// --- THIS IS THE FIX ---
+// Added 'getDoc' to the import list.
+import { onSnapshot, doc, collection, updateDoc, writeBatch, deleteDoc, getDocs, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { BarChart2, CheckCircle, XCircle, PlusCircle, Send, Users, HelpCircle, Trash2, Loader2 } from 'lucide-react';
 import { CopyButton } from '../components/CopyButton';
@@ -343,10 +345,10 @@ export function QuizMasterView() {
                                     </li>
                                 ))}
                             </ul>
-                        </div>
+             </div>
                     </div>
                 </div>
-     </div>
+            </div>
         </>
     );
-                                                                                                                                  }
+    }
