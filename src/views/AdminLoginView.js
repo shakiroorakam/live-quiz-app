@@ -28,7 +28,7 @@ async function deleteDocumentAndSubcollections(docRef) {
 export function AdminLoginView() {
     const navigate = useNavigate();
     const [user, setUser] = useState(null);
-    const [email, setEmail] = useState('quizbyshakir@quiz.com'); // Default email
+    const [email, setEmail] = useState(''); // Email is now empty by default
     const [password, setPassword] = useState('');
     const [loginError, setLoginError] = useState('');
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -39,7 +39,8 @@ export function AdminLoginView() {
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            if (currentUser && currentUser.email === 'quizbyshakir@quiz.com') {
+            // We only consider the user logged in if they have a non-anonymous provider
+            if (currentUser && !currentUser.isAnonymous) {
                 setUser(currentUser);
                 setIsLoggedIn(true);
             } else {
@@ -66,16 +67,12 @@ export function AdminLoginView() {
 
     const handleLogin = async () => {
         setLoginError('');
-        if (password !== 'shakir@123') {
-            setLoginError('Invalid credentials.');
-            return;
-        }
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            // onAuthStateChanged will handle setting the user and isLoggedIn state
+            // onAuthStateChanged will handle setting isLoggedIn state
         } catch (error) {
             console.error("Firebase Login Error:", error);
-            setLoginError('Invalid credentials or connection error.');
+            setLoginError('Invalid email or password.');
         }
     };
 
@@ -86,9 +83,9 @@ export function AdminLoginView() {
         }
         const newQuizId = Math.random().toString(36).substring(2, 8).toUpperCase();
         await setDoc(doc(db, "quizzes", newQuizId), {
-            title: newQuizTitle, // Add the title here
+            title: newQuizTitle,
             quizMasterId: user.uid,
-            quizMasterName: 'Shakir',
+            quizMasterName: user.email.split('@')[0], // Use part of email as name
             state: "lobby",
             currentQuestionId: null,
             questions: [],
@@ -112,7 +109,8 @@ export function AdminLoginView() {
                         <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
                             <div className="form-group">
                                 <label>Email</label>
-                                <input type="email" value={email} readOnly className="form-control-plaintext" />
+                                {/* --- THIS IS THE FIX --- */}
+                                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email" className="form-control form-control-lg" />
                             </div>
                             <div className="form-group">
                                 <label>Password</label>
@@ -164,3 +162,5 @@ export function AdminLoginView() {
         </div>
     );
 }
+
+                                               
