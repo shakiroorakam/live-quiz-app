@@ -346,4 +346,8 @@ export function QuizMasterView() {
                         </div>
                     </div>
                 </div>
-     
+            </div>
+        </>
+    );
+}
+
