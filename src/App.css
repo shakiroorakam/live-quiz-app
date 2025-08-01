@@ -1,38 +1,125 @@
-.App {
-  text-align: center;
+/* --- Global Styles & Poppins Font --- */
+body {
+    font-family: 'Poppins', sans-serif;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+/* --- Dark Grey Animated Background --- */
+.app-background-dark {
+    background: linear-gradient(-45deg, #232526, #414345, #232526, #414345);
+    background-size: 400% 400%;
+    animation: gradientAnimation 15s ease infinite;
+    min-height: 100vh;
+    color: #f8f9fa; /* Light text color for dark background */
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+@keyframes gradientAnimation {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+/* --- Card Styles for Dark Theme --- */
+.card-dark {
+    background-color: rgba(45, 48, 51, 0.85); /* Dark, slightly transparent card */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
 }
 
-.App-link {
-  color: #61dafb;
+.card-header-dark {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: #f8f9fa;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* --- List Group Styles for Dark Theme --- */
+.list-group-item-dark {
+    background-color: transparent;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #f8f9fa;
+}
+
+/* --- Form Control Styles for Dark Theme --- */
+.form-control-dark {
+    background-color: #343a40;
+    border: 1px solid #6c757d;
+    color: #f8f9fa;
+}
+
+.form-control-dark:focus {
+    background-color: #343a40;
+    border-color: #0d6efd;
+    color: #f8f9fa;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* --- Button Styles & Animations --- */
+.animated-button {
+    border-radius: 50px;
+    font-weight: 600;
+    padding: 12px 30px;
+    border: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.animated-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 7px 20px rgba(0, 0, 0, 0.3);
+}
+
+.btn-primary.animated-button {
+    background: linear-gradient(45deg, #0d6efd, #0a58ca);
+    color: white;
+}
+
+.btn-success.animated-button {
+    background: linear-gradient(45deg, #198754, #1e7e34);
+    color: white;
+}
+
+/* --- Participant Answer Button Style --- */
+.answer-btn {
+    transition: all 0.2s ease-in-out;
+    border-width: 2px;
+}
+
+.answer-btn:hover {
+    transform: scale(1.02);
+}
+
+/* --- Modal Styles for Dark Theme --- */
+.modal-content-dark {
+    background-color: #2d3033;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #f8f9fa;
+}
+.modal-header-dark {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.modal-footer-dark {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* --- Navbar Style --- */
+.navbar-dark-custom {
+    background-color: rgba(33, 37, 41, 0.8);
+    backdrop-filter: blur(10px);
+}
+
+/* --- Fade-in Animation for the main container --- */
+.fade-in {
+    animation: fadeInAnimation 0.5s ease-in-out;
+}
+
+@keyframes fadeInAnimation {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

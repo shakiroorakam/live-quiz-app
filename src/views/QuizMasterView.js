@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-// --- THIS IS THE FIX ---
-// Added 'getDoc' to the import list.
 import { onSnapshot, doc, collection, updateDoc, writeBatch, deleteDoc, getDocs, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { BarChart2, CheckCircle, XCircle, PlusCircle, Send, Users, HelpCircle, Trash2, Loader2 } from 'lucide-react';
@@ -9,34 +7,34 @@ import { CopyButton } from '../components/CopyButton';
 import { Navbar } from '../components/Navbar';
 import { MasterNav } from '../components/MasterNav';
 
-// --- Reusable Sub-Components (Defined at the top level for stability) ---
+// --- Reusable Sub-Components ---
 
 const QuestionsTab = ({ questions = [], handleAddQuestion, newQuestion, setNewQuestion }) => {
     const initialQuestionState = { type: 'mcq', text: '', options: ['', '', '', ''], correctAnswer: '', points: 10 };
     return (
         <>
             <div className="card shadow-sm mb-4 border-0">
-                <div className="card-header bg-white h5"><PlusCircle className="mr-2 text-primary"/>Add a New Question</div>
+                <div className="card-header bg-light h5 d-flex align-items-center text-dark"><PlusCircle className="mr-2 text-primary"/>Add a New Question</div>
                 <div className="card-body">
                     <div className="form-group">
-                        <label>Question Type</label>
+                        <label className="text-muted">Question Type</label>
                         <select className="form-control" value={newQuestion.type} onChange={e => setNewQuestion({...newQuestion, type: e.target.value})}>
                             <option value="mcq">Multiple Choice</option>
                             <option value="descriptive">Descriptive</option>
                         </select>
                     </div>
                     <div className="form-group">
-                        <label>Question Text</label>
+                        <label className="text-muted">Question Text</label>
                         <input type="text" placeholder="What is...?" value={newQuestion.text} onChange={e => setNewQuestion({...newQuestion, text: e.target.value})} className="form-control" />
                     </div>
                     {newQuestion.type === 'mcq' && (
                         <>
-                            <label>Options</label>
+                            <label className="text-muted">Options</label>
                             {newQuestion.options.map((opt, i) => (
                                 <div className="form-group" key={i}><input type="text" placeholder={`Option ${i + 1}`} value={opt} onChange={e => { const newOpts = [...newQuestion.options]; newOpts[i] = e.target.value; setNewQuestion({...newQuestion, options: newOpts}); }} className="form-control" /></div>
                             ))}
                             <div className="form-group">
-                                <label>Correct Answer</label>
+                                <label className="text-muted">Correct Answer</label>
                                 <select className="form-control" value={newQuestion.correctAnswer} onChange={e => setNewQuestion({...newQuestion, correctAnswer: e.target.value})}>
                                     <option value="">Select Correct Answer</option>
                                     {newQuestion.options.filter(opt => opt).map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
@@ -45,15 +43,15 @@ const QuestionsTab = ({ questions = [], handleAddQuestion, newQuestion, setNewQu
                         </>
                     )}
                     <div className="form-group">
-                        <label>Points</label>
+                        <label className="text-muted">Points</label>
                         <input type="number" value={newQuestion.points} onChange={e => setNewQuestion({...newQuestion, points: parseInt(e.target.value) || 10})} className="form-control" />
                     </div>
                     <button onClick={() => { handleAddQuestion(); setNewQuestion(initialQuestionState); }} className="btn btn-success">Add Question to Bank</button>
                 </div>
             </div>
             <div className="card shadow-sm mb-4 border-0">
-                <div className="card-header bg-white h5">Question Bank ({questions.length})</div>
-                <ul className="list-group list-group-flush">{questions.map(q => (<li key={q.id} className="list-group-item"><p className="mb-0">{q.text}</p><small className="text-muted text-uppercase">{q.type} - {q.points} pts</small></li>))}</ul>
+                <div className="card-header bg-light h5 text-dark">Question Bank ({questions.length})</div>
+                <ul className="list-group list-group-flush">{questions.map(q => (<li key={q.id} className="list-group-item"><p className="mb-0 text-dark">{q.text}</p><small className="text-muted text-uppercase">{q.type} - {q.points} pts</small></li>))}</ul>
             </div>
         </>
     );
@@ -61,12 +59,12 @@ const QuestionsTab = ({ questions = [], handleAddQuestion, newQuestion, setNewQu
 
 const StartQuizTab = ({ questions = [], airedQuestionIds = [], handleAirQuestion }) => (
     <div className="card shadow-sm mb-4 border-0">
-        <div className="card-header bg-white h5">Select a Question to Air</div>
+        <div className="card-header bg-light h5 text-dark">Select a Question to Air</div>
         <ul className="list-group list-group-flush">
             {questions.length === 0 && <li className="list-group-item text-muted">Add questions in the 'Questions' tab first.</li>}
             {questions.map(q => (
-                <li key={q.id} className="list-group-item d-flex justify-content-between align-items-center">
-                    <div><p className="mb-0">{q.text}</p><small className="text-muted text-uppercase">{q.type}</small></div>
+                <li key={q.id} className="list-group-item d-flex justify-content-between align-items-center question-list-item">
+                    <div><p className="mb-0 text-dark">{q.text}</p><small className="text-muted text-uppercase">{q.type}</small></div>
                     {airedQuestionIds.includes(q.id) ? (<span className="badge badge-light">Aired</span>) : (<button onClick={() => handleAirQuestion(q.id)} className="btn btn-sm btn-primary d-flex align-items-center"><Send className="mr-1" size={14}/>Air</button>)}
                 </li>
             ))}
@@ -76,7 +74,7 @@ const StartQuizTab = ({ questions = [], airedQuestionIds = [], handleAirQuestion
 
 const ParticipantsTab = ({ participants, handleDeleteParticipant, handleSelectParticipant }) => (
     <div className="card shadow-sm border-0">
-        <div className="card-header bg-white h5">Participants ({participants.length})</div>
+        <div className="card-header bg-light h5 text-dark">Participants ({participants.length})</div>
         <ul className="list-group list-group-flush">
             {participants.length === 0 && <li className="list-group-item text-muted">No participants have joined yet.</li>}
             {participants.map(p => (
@@ -148,9 +146,6 @@ const VerificationListItem = ({ ans, handleVerification }) => {
         </li>
     );
 };
-
-
-// --- Main QuizMasterView Component ---
 
 export function QuizMasterView() {
     const { quizId } = useParams();
@@ -272,12 +267,11 @@ export function QuizMasterView() {
     const renderMainContent = () => {
         if (quiz?.state === 'question_live' && currentQuestion) {
             return (
-                <div className="card shadow-sm mb-4 border-primary">
-                    <div className="card-header bg-primary text-white h5">Live Question</div>
-                    <div className="card-body text-center">
+                <div className="card shadow-sm mb-4 border-0 live-question-card">
+                    <div className="card-body text-center p-5">
                         <h2 className="text-dark">{currentQuestion.text}</h2>
                         <p className="text-muted">{answers.length} response(s) received</p>
-                        <button onClick={handleEndQuestion} className="btn btn-danger btn-lg mt-3">End Time for this Question</button>
+                        <button onClick={handleEndQuestion} className="btn btn-danger btn-lg mt-3 animated-button">End Time for this Question</button>
                     </div>
                 </div>
             );
@@ -285,14 +279,14 @@ export function QuizMasterView() {
         if (quiz?.state === 'question_ended' && currentQuestion) {
             return (
                 <div className="card shadow-sm mb-4 border-0">
-                    <div className="card-header bg-white h5">Verify Answers: <span className="text-primary">{currentQuestion.text}</span></div>
+                    <div className="card-header bg-light h5 text-dark">Verify Answers: <span className="text-primary">{currentQuestion.text}</span></div>
                      <ul className="list-group list-group-flush">
                         {answers.length === 0 && <li className="list-group-item text-muted">No answers submitted.</li>}
                         {answers.map(ans => (
                             <VerificationListItem key={ans.id} ans={ans} handleVerification={handleVerification} />
                         ))}
                     </ul>
-                    <div className="card-footer bg-white text-right">
+                    <div className="card-footer bg-light text-right">
                         <button onClick={handleFinishVerification} className="btn btn-primary">Finish Verification & Return</button>
                     </div>
                 </div>
@@ -314,41 +308,50 @@ export function QuizMasterView() {
                 isLoading={isLoadingAnswers}
                 onClose={() => setSelectedParticipant(null)} 
             />
-            <div className="container-fluid" style={{ paddingTop: '80px' }}>
-                <div className="row">
-                    <div className="col-lg-8">
-                        <div className="card shadow-sm mb-4 border-0">
-                            <div className="card-body d-flex justify-content-between align-items-center">
-                                <div>
-                                   <h1 className="card-title text-primary h3">{quiz?.title || 'Quiz Master Dashboard'}</h1>
-                                   <div className="d-flex align-items-center text-muted">
-                                       <span>Quiz ID: <span className="font-weight-bold text-success">{quizId}</span></span>
-                                       <CopyButton text={quizId} />
-                                   </div>
+            <div className="container-fluid fade-in" style={{ paddingTop: '80px' }}>
+                <div className="card animated-card">
+                    <div className="card-body p-lg-4">
+                        <div className="row">
+                            <div className="col-lg-8">
+                                <div className="d-flex justify-content-between align-items-center mb-4 px-3">
+                                    <div>
+                                       <h1 className="h3 mb-0 text-dark">{quiz?.title || 'Quiz Master Dashboard'}</h1>
+                                       <div className="d-flex align-items-center text-muted">
+                                           <span>Quiz ID: <span className="font-weight-bold text-success">{quizId}</span></span>
+                                           <CopyButton text={quizId} />
+                                       </div>
+                                    </div>
+                                </div>
+                                <div className="master-nav px-3">
+                                    <MasterNav activeTab={activeTab} setActiveTab={setActiveTab} quizState={quiz?.state} />
+                                </div>
+                                <hr className="my-0" />
+                                <div className="p-3">
+                                    {renderMainContent()}
                                 </div>
                             </div>
+                            <div className="col-lg-4 border-left d-none d-lg-block" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+                                <div className="d-flex align-items-center mb-3 pt-3 px-3">
+                                    <BarChart2 className="mr-2 text-primary"/>
+                                    <h5 className="mb-0 text-dark">Scoreboard</h5>
+                                </div>
+                                <ul className="list-group list-group-flush">
+                                    {participants.length === 0 && <li className="list-group-item text-muted">No participants yet.</li>}
+                                    {participants.map((p, index) => (
+                                        <li key={p.id} className="list-group-item d-flex justify-content-between align-items-center question-list-item">
+                                            <button className="btn btn-link p-0 text-left text-dark" onClick={() => handleSelectParticipant(p)}>
+                                                <span className="font-weight-bold mr-3">{index + 1}.</span>
+                                                <span>{p.name}</span>
+                                            </button>
+                                            <span className="badge badge-primary badge-pill p-2">{p.score} pts</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
                         </div>
-                        <MasterNav activeTab={activeTab} setActiveTab={setActiveTab} quizState={quiz?.state} />
-                        {renderMainContent()}
-                    </div>
-                    <div className="col-lg-4">
-                        <div className="card shadow-sm border-0">
-                            <div className="card-header bg-white h5"><BarChart2 className="mr-2 text-primary"/>Scoreboard</div>
-                            <ul className="list-group list-group-flush">
-                                {participants.map((p, index) => (
-                                    <li key={p.id} className="list-group-item d-flex justify-content-between align-items-center">
-                                        <button className="btn btn-link p-0 text-left" onClick={() => handleSelectParticipant(p)}>
-                                            <span className="font-weight-bold mr-3">{index + 1}.</span>
-                                            <span>{p.name}</span>
-                                        </button>
-                                        <span className="badge badge-primary badge-pill p-2">{p.score} pts</span>
-                                    </li>
-                                ))}
-                            </ul>
-             </div>
                     </div>
                 </div>
             </div>
         </>
     );
-    }
+}

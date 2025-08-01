@@ -3,11 +3,10 @@ import { Link, useParams } from 'react-router-dom';
 import { Home, BarChart2 } from 'lucide-react';
 
 export const Navbar = () => {
-    // Get the quizId from the URL if it exists
     const { quizId } = useParams();
 
     return (
-        <nav className="navbar navbar-expand-lg navbar-dark bg-primary fixed-top shadow-sm">
+        <nav className="navbar navbar-expand-lg navbar-dark fixed-top shadow-sm navbar-dark-custom">
             <div className="container-fluid">
                 <Link className="navbar-brand font-weight-bold" to="/">Live Quiz</Link>
                 <button className="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
