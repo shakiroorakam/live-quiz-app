@@ -12,34 +12,28 @@ import {
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { Loader2, BarChart2 } from "lucide-react";
 
-export function ParticipantView() {
+// Language detection helper
+const getLangClass = (text) => {
+  if (!text) return "";
+  if (/[\u0600-\u06FF]/.test(text)) return "lang-ar"; // Arabic
+  if (/[\u0D00-\u0D7F]/.test(text)) return "lang-ml"; // Malayalam
+  return "";
+};
+
+export function ParticipantView({ user }) {
+  // Receives user from App.js
   const { quizId } = useParams();
   const navigate = useNavigate();
 
-  const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
   const [quiz, setQuiz] = useState(null);
-  const [participants, setParticipants] = useState([]);
   const [myParticipantData, setMyParticipantData] = useState(null);
   const [myAnswer, setMyAnswer] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
   const [descriptiveAnswer, setDescriptiveAnswer] = useState("");
   const hasSubmittedRef = useRef(false);
+  const [dataLoading, setDataLoading] = useState(true);
 
-  // Effect 1: Handle Anonymous Authentication
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-      } else {
-        signInAnonymously(auth).catch(console.error);
-      }
-      setAuthLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // Effect 2: Fetch Quiz and Participants Data
+  // Effect 1: Fetch Quiz Data
   useEffect(() => {
     if (!quizId) return;
     const quizRef = doc(db, "quizzes", quizId);
@@ -47,22 +41,16 @@ export function ParticipantView() {
       if (docSnap.exists()) {
         setQuiz({ id: docSnap.id, ...docSnap.data() });
       } else {
+        alert("Quiz not found!");
         navigate("/");
       }
+      setDataLoading(false);
     });
 
-    const participantsRef = collection(db, "quizzes", quizId, "participants");
-    const unsubscribeParticipants = onSnapshot(participantsRef, (snapshot) => {
-      setParticipants(snapshot.docs.map((p) => ({ id: p.id, ...p.data() })));
-    });
-
-    return () => {
-      unsubscribeQuiz();
-      unsubscribeParticipants();
-    };
+    return () => unsubscribeQuiz();
   }, [quizId, navigate]);
 
-  // Effect 3: Track my personal participant data (for score updates)
+  // Effect 2: Track my personal participant data
   useEffect(() => {
     if (!user || !quizId) return;
     const myParticipantRef = doc(
@@ -80,7 +68,7 @@ export function ParticipantView() {
     return () => unsubscribe();
   }, [user, quizId]);
 
-  // Effect 4: Check if I have already answered the current question
+  // Effect 3: Check for my answer to the current question
   useEffect(() => {
     if (user && quiz && quiz.currentQuestionId) {
       hasSubmittedRef.current = false;
@@ -105,69 +93,81 @@ export function ParticipantView() {
       });
       return () => unsubscribe();
     } else {
-      // If there's no current question, we shouldn't have a "myAnswer" state from a previous question.
       setMyAnswer(null);
     }
   }, [user, quiz, quizId]);
 
-  const handleSubmitAnswer = useCallback(async () => {
-    if (!user || !quiz || !quiz.currentQuestionId || hasSubmittedRef.current)
-      return;
+  const handleSubmitAnswer = useCallback(
+    async (isPenalty = false) => {
+      if (!user || !quiz || !quiz.currentQuestionId || hasSubmittedRef.current)
+        return;
 
-    const currentQuestion = quiz.questions.find(
-      (q) => q.id === quiz.currentQuestionId
-    );
-    if (!currentQuestion) return;
+      const currentQuestion = quiz.questions.find(
+        (q) => q.id === quiz.currentQuestionId
+      );
+      if (!currentQuestion) return;
 
-    let answerPayload = {
-      answer: "",
-      verified: false,
-      correct: null,
-      submittedAt: new Date(),
-      questionId: quiz.currentQuestionId, // Fix: Store which question this answer is for
-    };
-    let isCorrect = null;
+      let answerPayload = {
+        answer: isPenalty ? "Switched tabs" : "",
+        verified: false,
+        correct: null,
+        submittedAt: new Date(),
+        questionId: quiz.currentQuestionId,
+      };
+      let isCorrect = null;
 
-    if (currentQuestion.type === "mcq") {
-      if (selectedOption === null) return;
-      answerPayload.answer = currentQuestion.options[selectedOption];
-      isCorrect = String(selectedOption) === currentQuestion.correctAnswer;
-    } else {
-      if (!descriptiveAnswer.trim()) return;
-      answerPayload.answer = descriptiveAnswer;
-    }
-
-    hasSubmittedRef.current = true;
-
-    const answerRef = doc(
-      db,
-      "quizzes",
-      quizId,
-      "answers",
-      quiz.currentQuestionId,
-      "submissions",
-      user.uid
-    );
-    const participantRef = doc(db, "quizzes", quizId, "participants", user.uid);
-
-    const batch = writeBatch(db);
-
-    if (isCorrect !== null) {
-      answerPayload.verified = true;
-      answerPayload.correct = isCorrect;
-      const points = isCorrect
-        ? currentQuestion.points || 0
-        : -(currentQuestion.negativePoints || 0);
-      if (points !== 0) {
-        batch.update(participantRef, { score: increment(points) });
+      if (!isPenalty) {
+        if (currentQuestion.type === "mcq") {
+          if (selectedOption === null) return;
+          answerPayload.answer = currentQuestion.options[selectedOption];
+          isCorrect = String(selectedOption) === currentQuestion.correctAnswer;
+        } else {
+          if (!descriptiveAnswer.trim()) return;
+          answerPayload.answer = descriptiveAnswer;
+        }
+      } else {
+        isCorrect = false;
       }
-    }
 
-    batch.set(answerRef, answerPayload);
-    await batch.commit();
-  }, [user, quiz, selectedOption, descriptiveAnswer, quizId]);
+      hasSubmittedRef.current = true;
 
-  // Effect 5: Anti-Cheat - Auto-submit on tab change
+      const answerRef = doc(
+        db,
+        "quizzes",
+        quizId,
+        "answers",
+        quiz.currentQuestionId,
+        "submissions",
+        user.uid
+      );
+      const participantRef = doc(
+        db,
+        "quizzes",
+        quizId,
+        "participants",
+        user.uid
+      );
+
+      const batch = writeBatch(db);
+
+      if (isCorrect !== null) {
+        answerPayload.verified = true;
+        answerPayload.correct = isCorrect;
+        const points = isCorrect
+          ? currentQuestion.points || 0
+          : -(currentQuestion.negativePoints || 0);
+        if (points !== 0) {
+          batch.update(participantRef, { score: increment(points) });
+        }
+      }
+
+      batch.set(answerRef, answerPayload);
+      await batch.commit();
+    },
+    [user, quiz, selectedOption, descriptiveAnswer, quizId]
+  );
+
+  // Effect 4: Anti-Cheat & Auto-Submit
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (
@@ -175,9 +175,14 @@ export function ParticipantView() {
         quiz?.state === "question_live" &&
         !hasSubmittedRef.current
       ) {
-        handleSubmitAnswer();
+        handleSubmitAnswer(true);
       }
     };
+
+    if (quiz?.state === "question_ended" && !hasSubmittedRef.current) {
+      handleSubmitAnswer(false);
+    }
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () =>
       document.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -192,7 +197,6 @@ export function ParticipantView() {
     );
 
     if (myAnswer) {
-      // Fix: Find the question that this answer belongs to, not the current live question.
       const answeredQuestion = quiz.questions?.find(
         (q) => q.id === myAnswer.questionId
       );
@@ -209,9 +213,12 @@ export function ParticipantView() {
               <h5 className='mb-0'>
                 You were {myAnswer.correct ? "Correct" : "Incorrect"}!
               </h5>
-              {myAnswer.correct && answeredQuestion && (
+              {answeredQuestion && (
                 <p className='mb-0'>
-                  You earned {answeredQuestion.points} points.
+                  You earned{" "}
+                  {myAnswer.awardedPoints ??
+                    (myAnswer.correct ? answeredQuestion.points : 0)}{" "}
+                  points.
                 </p>
               )}
             </div>
@@ -223,7 +230,11 @@ export function ParticipantView() {
     if (quiz.state === "question_live" && currentQuestion) {
       return (
         <div className='anti-copy'>
-          <h3 className='mb-4 font-weight-bold text-center'>
+          <h3
+            className={`mb-4 font-weight-bold text-center multilang-text ${getLangClass(
+              currentQuestion.text
+            )}`}
+          >
             {currentQuestion.text}
           </h3>
           {currentQuestion.type === "mcq" ? (
@@ -231,9 +242,9 @@ export function ParticipantView() {
               {currentQuestion.options.map((opt, i) => (
                 <button
                   key={i}
-                  className={`list-group-item list-group-item-action ${
-                    selectedOption === i ? "active" : ""
-                  }`}
+                  className={`list-group-item list-group-item-action multilang-text ${getLangClass(
+                    opt
+                  )} ${selectedOption === i ? "active" : ""}`}
                   onClick={() => setSelectedOption(i)}
                 >
                   {opt}
@@ -242,7 +253,9 @@ export function ParticipantView() {
             </div>
           ) : (
             <textarea
-              className='form-control'
+              className={`form-control multilang-text ${getLangClass(
+                descriptiveAnswer
+              )}`}
               rows='4'
               placeholder='Type your answer here...'
               value={descriptiveAnswer}
@@ -251,7 +264,7 @@ export function ParticipantView() {
           )}
           <button
             className='btn btn-primary btn-block animated-button mt-4'
-            onClick={handleSubmitAnswer}
+            onClick={() => handleSubmitAnswer(false)}
           >
             Submit Answer
           </button>
@@ -266,7 +279,8 @@ export function ParticipantView() {
     );
   };
 
-  if (authLoading || !quiz) {
+  // This is the corrected loading check. It waits for data to load OR for the user prop to arrive.
+  if (dataLoading || !user) {
     return (
       <div className='d-flex justify-content-center align-items-center vh-100'>
         <div className='text-light d-flex align-items-center'>
@@ -282,7 +296,11 @@ export function ParticipantView() {
       style={{ width: "90%", maxWidth: "800px" }}
     >
       <div className='d-flex justify-content-between align-items-center mb-4'>
-        <h4 className='font-weight-bold mb-0'>
+        <h4
+          className={`font-weight-bold mb-0 multilang-text ${getLangClass(
+            myParticipantData?.name
+          )}`}
+        >
           {myParticipantData?.name || "Participant"}'s Quiz
         </h4>
         <div className='text-right'>

@@ -1,11 +1,26 @@
 /* Global Styles & Background */
 body {
   margin: 0;
-  font-family: "Poppins", sans-serif;
+  font-family: "Poppins", "Anek Malayalam", "El Messiri", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-/* ... all your existing styles ... */
+
+/* --- Multi-language Support --- */
+.multilang-text {
+  /* This class will be applied to text that might be in different languages */
+  line-height: 1.6;
+}
+
+.lang-ar {
+  font-family: "El Messiri", sans-serif;
+  direction: rtl;
+  text-align: right;
+}
+
+.lang-ml {
+  font-family: "Anek Malayalam", sans-serif;
+}
 
 /* --- New Home View Styles --- */
 .home-card {

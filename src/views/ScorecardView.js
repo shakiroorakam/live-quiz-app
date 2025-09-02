@@ -4,7 +4,15 @@ import { db } from "../firebase/config";
 import { onSnapshot, doc, collection } from "firebase/firestore";
 import { Loader2, Award, Trophy } from "lucide-react";
 
-// New Helper Component for the Toppers Display
+// Language detection helper
+const getLangClass = (text) => {
+  if (!text) return "";
+  if (/[\u0600-\u06FF]/.test(text)) return "lang-ar"; // Arabic
+  if (/[\u0D00-\u0D7F]/.test(text)) return "lang-ml"; // Malayalam
+  return "";
+};
+
+// Helper component for the Toppers Display
 const ToppersDisplay = ({ toppers }) => (
   <div className='toppers-container'>
     {toppers.map((p, index) => {
@@ -15,7 +23,13 @@ const ToppersDisplay = ({ toppers }) => (
       return (
         <div key={p.id} className={`rank-card rank-${rank}`}>
           <div className='rank-icon'>{rankIcon}</div>
-          <h3 className='card-title font-weight-bold'>{p.name}</h3>
+          <h3
+            className={`card-title font-weight-bold multilang-text ${getLangClass(
+              p.name
+            )}`}
+          >
+            {p.name}
+          </h3>
           <p className='display-4'>{p.score}</p>
         </div>
       );
@@ -32,7 +46,11 @@ const ScoreboardDisplay = ({ participants }) => (
         <div key={p.id} className='col-sm-6 col-md-4 col-lg-3 mb-4'>
           <div className='card text-center h-100 public-score-card'>
             <div className='card-body d-flex flex-column justify-content-center'>
-              <h4 className='card-title'>{p.name}</h4>
+              <h4
+                className={`card-title multilang-text ${getLangClass(p.name)}`}
+              >
+                {p.name}
+              </h4>
               <p className='display-4 font-weight-bold text-light'>{p.score}</p>
             </div>
           </div>
@@ -97,7 +115,9 @@ export function ScorecardView() {
               Question:
             </p>
             <h1
-              className='display-2 font-weight-bold'
+              className={`display-2 font-weight-bold multilang-text ${getLangClass(
+                currentQuestion?.text
+              )}`}
               style={{ fontSize: "5rem" }}
             >
               {currentQuestion?.text}
@@ -111,7 +131,9 @@ export function ScorecardView() {
               The correct answer is:
             </p>
             <h1
-              className='display-2 font-weight-bold text-success'
+              className={`display-2 font-weight-bold text-success multilang-text ${getLangClass(
+                currentQuestion?.answerText
+              )}`}
               style={{ fontSize: "5rem" }}
             >
               {currentQuestion?.answerText}
@@ -125,7 +147,7 @@ export function ScorecardView() {
         const toppers = sortedByScore.slice(0, 3);
         const restOfParticipants = sortedByScore.sort((a, b) =>
           a.name.localeCompare(b.name)
-        ); // Sort rest alphabetically
+        );
 
         return (
           <div>
@@ -146,10 +168,14 @@ export function ScorecardView() {
           a.name.localeCompare(b.name)
         );
         if (participants.length > 0) {
-          return <ScoreboardDisplay quiz={quiz} participants={sortedByName} />;
+          return <ScoreboardDisplay participants={sortedByName} />;
         }
         return (
-          <h1 className='display-3 text-center'>
+          <h1
+            className={`display-3 text-center multilang-text ${getLangClass(
+              quiz.title
+            )}`}
+          >
             Welcome to the '{quiz.title}' quiz!
           </h1>
         );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import ReactDOM from "react-dom"; // Import ReactDOM for portals
+import ReactDOM from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import { db } from "../firebase/config";
 import {
@@ -29,6 +29,14 @@ import {
 import { CopyButton } from "../components/CopyButton";
 import { MasterNav } from "../components/MasterNav";
 
+// Language detection helper
+const getLangClass = (text) => {
+  if (!text) return "";
+  if (/[\u0600-\u06FF]/.test(text)) return "lang-ar"; // Arabic
+  if (/[\u0D00-\u0D7F]/.test(text)) return "lang-ml"; // Malayalam
+  return "";
+};
+
 // --- Helper Components ---
 
 const ParticipantDetailsModal = ({
@@ -41,7 +49,6 @@ const ParticipantDetailsModal = ({
 }) => {
   if (!show) return null;
 
-  // The modal is now wrapped in a Portal to break out of the parent container
   return ReactDOM.createPortal(
     <div
       className='modal show d-block'
@@ -75,10 +82,18 @@ const ParticipantDetailsModal = ({
                       : "bg-light"
                   }`}
                 >
-                  <p className='mb-1'>
+                  <p
+                    className={`mb-1 multilang-text ${getLangClass(
+                      ans.questionText
+                    )}`}
+                  >
                     <strong>Q:</strong> {ans.questionText}
                   </p>
-                  <p className='mb-0'>
+                  <p
+                    className={`mb-0 multilang-text ${getLangClass(
+                      ans.answer
+                    )}`}
+                  >
                     <strong>A:</strong> {ans.answer}
                   </p>
                   <small>Points Awarded: {ans.awardedPoints ?? "N/A"}</small>
@@ -91,7 +106,7 @@ const ParticipantDetailsModal = ({
         </div>
       </div>
     </div>,
-    document.getElementById("modal-root") // Target the new div in index.html
+    document.getElementById("modal-root")
   );
 };
 
@@ -133,7 +148,9 @@ const QuestionEditorModal = ({ show, question, onSave, onClose }) => {
             <div className='form-group'>
               <label>Question Text</label>
               <textarea
-                className='form-control'
+                className={`form-control multilang-text ${getLangClass(
+                  editedQuestion.text
+                )}`}
                 rows='3'
                 value={editedQuestion.text}
                 onChange={(e) =>
@@ -176,7 +193,9 @@ const QuestionEditorModal = ({ show, question, onSave, onClose }) => {
                     </div>
                     <input
                       type='text'
-                      className='form-control'
+                      className={`form-control multilang-text ${getLangClass(
+                        opt
+                      )}`}
                       placeholder={`Option ${i + 1}`}
                       value={opt}
                       onChange={(e) => handleOptionChange(i, e.target.value)}
@@ -189,7 +208,9 @@ const QuestionEditorModal = ({ show, question, onSave, onClose }) => {
               <label>Correct Answer Text (to display to public)</label>
               <input
                 type='text'
-                className='form-control'
+                className={`form-control multilang-text ${getLangClass(
+                  editedQuestion.answerText
+                )}`}
                 value={editedQuestion.answerText || ""}
                 onChange={(e) =>
                   setEditedQuestion({
@@ -266,7 +287,13 @@ const VerificationListItem = ({
         <p className='mb-1'>
           <strong>{participantName}</strong>
         </p>
-        <p className='mb-0 text-muted'>{answer.answer}</p>
+        <p
+          className={`mb-0 text-muted multilang-text ${getLangClass(
+            answer.answer
+          )}`}
+        >
+          {answer.answer}
+        </p>
       </div>
       {!answer.verified && (
         <div className='d-flex align-items-center'>
@@ -317,7 +344,9 @@ const QuestionsTab = ({
         <h4 className='mb-3'>Add a New Question</h4>
         <div className='form-group'>
           <textarea
-            className='form-control'
+            className={`form-control multilang-text ${getLangClass(
+              newQuestion.text
+            )}`}
             rows='3'
             placeholder='Question text'
             value={newQuestion.text}
@@ -359,7 +388,7 @@ const QuestionsTab = ({
                 </div>
                 <input
                   type='text'
-                  className='form-control'
+                  className={`form-control multilang-text ${getLangClass(opt)}`}
                   placeholder={`Option ${i + 1}`}
                   value={opt}
                   onChange={(e) => handleOptionChange(i, e.target.value)}
@@ -372,7 +401,9 @@ const QuestionsTab = ({
           <label>Correct Answer Text (for public display)</label>
           <input
             type='text'
-            className='form-control'
+            className={`form-control multilang-text ${getLangClass(
+              newQuestion.answerText
+            )}`}
             value={newQuestion.answerText}
             onChange={(e) =>
               setNewQuestion({ ...newQuestion, answerText: e.target.value })
@@ -424,7 +455,13 @@ const QuestionsTab = ({
               key={q.id}
               className='list-group-item d-flex justify-content-between align-items-center'
             >
-              <span className='text-truncate mr-3'>{q.text}</span>
+              <span
+                className={`text-truncate mr-3 multilang-text ${getLangClass(
+                  q.text
+                )}`}
+              >
+                {q.text}
+              </span>
               <div>
                 <button
                   className='btn btn-sm btn-outline-info mr-2'
@@ -463,7 +500,13 @@ const StartQuizTab = ({ quiz, handleAirQuestion, airedQuestionIds }) => (
               airedQuestionIds.includes(q.id) ? "disabled-question" : ""
             }`}
           >
-            <span className='text-truncate mr-3'>{q.text}</span>
+            <span
+              className={`text-truncate mr-3 multilang-text ${getLangClass(
+                q.text
+              )}`}
+            >
+              {q.text}
+            </span>
             <button
               className='btn btn-sm btn-success'
               onClick={() => handleAirQuestion(q.id)}
@@ -844,7 +887,11 @@ export function QuizMasterView({ user }) {
 
       return (
         <div className='live-question-indicator p-4 rounded'>
-          <h3 className='mb-3'>
+          <h3
+            className={`mb-3 multilang-text ${getLangClass(
+              currentQuestion.text
+            )}`}
+          >
             Live Question:{" "}
             <span className='text-primary'>{currentQuestion.text}</span>
           </h3>
