@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { HashRouter, Routes, Route } from "react-router-dom";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { auth } from "./firebase/config";
 
 import { HomeView } from "./views/HomeView";
@@ -19,8 +19,18 @@ export default function App() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setAuthLoading(false);
+      if (currentUser) {
+        setUser(currentUser);
+        setAuthLoading(false);
+      } else {
+        // If there is no user, sign them in anonymously.
+        // This ensures every visitor gets a stable user ID.
+        signInAnonymously(auth).catch((error) => {
+          console.error("Anonymous sign-in failed:", error);
+          setAuthLoading(false); // Stop loading even if it fails
+        });
+        // The listener will fire again once sign-in is complete.
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -45,7 +55,8 @@ export default function App() {
           <Routes>
             <Route path='/' element={<HomeView />} />
             <Route path='/admin' element={<AdminLoginView user={user} />} />
-            <Route path='/join' element={<JoinQuizView />} />
+            {/* Pass the centrally managed user to the JoinQuizView */}
+            <Route path='/join' element={<JoinQuizView user={user} />} />
             <Route
               path='/quiz/:quizId/master'
               element={<QuizMasterView user={user} />}
