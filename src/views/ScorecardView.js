@@ -1,54 +1,175 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { onSnapshot, collection } from 'firebase/firestore';
-import { db } from '../firebase/config';
-import { Award } from 'lucide-react';
-import { Navbar } from '../components/Navbar';
+import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import { db } from "../firebase/config";
+import { onSnapshot, doc, collection } from "firebase/firestore";
+import { Loader2, Award, Trophy } from "lucide-react";
+
+// New Helper Component for the Toppers Display
+const ToppersDisplay = ({ toppers }) => (
+  <div className='toppers-container'>
+    {toppers.map((p, index) => {
+      const rank = index + 1;
+      let rankIcon = <Award />;
+      if (rank === 1) rankIcon = <Trophy />;
+
+      return (
+        <div key={p.id} className={`rank-card rank-${rank}`}>
+          <div className='rank-icon'>{rankIcon}</div>
+          <h3 className='card-title font-weight-bold'>{p.name}</h3>
+          <p className='display-4'>{p.score}</p>
+        </div>
+      );
+    })}
+  </div>
+);
+
+// Helper component for the full scoreboard view
+const ScoreboardDisplay = ({ participants }) => (
+  <div>
+    <h2 className='text-center mb-4'>Full Scoreboard</h2>
+    <div className='row justify-content-center'>
+      {participants.map((p) => (
+        <div key={p.id} className='col-sm-6 col-md-4 col-lg-3 mb-4'>
+          <div className='card text-center h-100 public-score-card'>
+            <div className='card-body d-flex flex-column justify-content-center'>
+              <h4 className='card-title'>{p.name}</h4>
+              <p className='display-4 font-weight-bold text-light'>{p.score}</p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
 export function ScorecardView() {
-    const { quizId } = useParams();
-    const [participants, setParticipants] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+  const { quizId } = useParams();
+  const [quiz, setQuiz] = useState(null);
+  const [participants, setParticipants] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-    useEffect(() => {
-        if (!quizId) return;
-        const participantsCollectionPath = `quizzes/${quizId}/participants`;
-        const unsubscribe = onSnapshot(collection(db, participantsCollectionPath), (snap) => {
-            const parts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            // Sort by score descending
-            parts.sort((a, b) => b.score - a.score);
-            setParticipants(parts);
-            setIsLoading(false);
-        });
-        return () => unsubscribe();
-    }, [quizId]);
+  useEffect(() => {
+    if (!quizId) {
+      setError("No Quiz ID provided.");
+      setLoading(false);
+      return;
+    }
 
-    return (
-        <>
-            <Navbar />
-            <div className="container text-center" style={{ paddingTop: '80px' }}>
-                <h1 className="display-4 text-primary">Scoreboard</h1>
-                <h2 className="text-muted mb-5">Quiz ID: {quizId}</h2>
-                {isLoading ? <p>Loading scores...</p> : (
-                    <div className="row justify-content-center">
-                        {participants.map((p, index) => (
-                            <div key={p.id} className="col-lg-3 col-md-4 col-sm-6 mb-4">
-                                <div className="card h-100 shadow-sm border-0">
-                                    <div className={`card-header text-white ${index === 0 ? 'bg-success' : 'bg-primary'}`}>
-                                        {index === 0 && <Award className="mb-2" size={40} />}
-                                        <h3 className="h1 font-weight-bold">{p.score}</h3>
-                                        <div>Points</div>
-                                    </div>
-                                    <div className="card-body">
-                                        <h5 className="card-title">{p.name}</h5>
-                                        <p className="card-text text-muted">Rank: {index + 1}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        </>
+    const quizRef = doc(db, "quizzes", quizId);
+    const unsubscribeQuiz = onSnapshot(quizRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setQuiz({ id: docSnap.id, ...docSnap.data() });
+      } else {
+        setError("Quiz not found.");
+      }
+      setLoading(false);
+    });
+
+    const participantsRef = collection(db, "quizzes", quizId, "participants");
+    const unsubscribeParticipants = onSnapshot(participantsRef, (snapshot) => {
+      const participantData = snapshot.docs.map((p) => ({
+        id: p.id,
+        ...p.data(),
+      }));
+      setParticipants(participantData);
+    });
+
+    return () => {
+      unsubscribeQuiz();
+      unsubscribeParticipants();
+    };
+  }, [quizId]);
+
+  const renderContent = () => {
+    if (!quiz)
+      return <div className='display-4'>Waiting for quiz to start...</div>;
+
+    const currentQuestion = quiz.questions?.find(
+      (q) => q.id === quiz.currentQuestionId
     );
+
+    switch (quiz.state) {
+      case "question_live":
+        return (
+          <div className='text-center'>
+            <p className='lead' style={{ fontSize: "2rem" }}>
+              Question:
+            </p>
+            <h1
+              className='display-2 font-weight-bold'
+              style={{ fontSize: "5rem" }}
+            >
+              {currentQuestion?.text}
+            </h1>
+          </div>
+        );
+      case "question_ended":
+        return (
+          <div className='text-center'>
+            <p className='lead' style={{ fontSize: "2rem" }}>
+              The correct answer is:
+            </p>
+            <h1
+              className='display-2 font-weight-bold text-success'
+              style={{ fontSize: "5rem" }}
+            >
+              {currentQuestion?.answerText}
+            </h1>
+          </div>
+        );
+      case "finished":
+        const sortedByScore = [...participants].sort(
+          (a, b) => b.score - a.score
+        );
+        const toppers = sortedByScore.slice(0, 3);
+        const restOfParticipants = sortedByScore.sort((a, b) =>
+          a.name.localeCompare(b.name)
+        ); // Sort rest alphabetically
+
+        return (
+          <div>
+            <h1 className='display-3 text-center mb-5 font-weight-bold'>
+              Final Ranks
+            </h1>
+            <ToppersDisplay toppers={toppers} />
+            <hr style={{ borderColor: "rgba(255,255,255,0.3)" }} />
+            <ScoreboardDisplay participants={restOfParticipants} />
+          </div>
+        );
+
+      case "lobby":
+      case "running":
+      case "scorecard_display":
+      default:
+        const sortedByName = [...participants].sort((a, b) =>
+          a.name.localeCompare(b.name)
+        );
+        if (participants.length > 0) {
+          return <ScoreboardDisplay quiz={quiz} participants={sortedByName} />;
+        }
+        return (
+          <h1 className='display-3 text-center'>
+            Welcome to the '{quiz.title}' quiz!
+          </h1>
+        );
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className='text-light d-flex align-items-center display-4'>
+        <Loader2 className='animate-spin mr-3' /> Loading...
+      </div>
+    );
+  }
+  if (error) {
+    return <div className='alert alert-danger display-4'>{error}</div>;
+  }
+
+  return (
+    <div className='public-display-container text-light text-center p-3 p-md-5'>
+      {renderContent()}
+    </div>
+  );
 }

@@ -1,140 +1,137 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Wifi } from 'lucide-react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db, auth } from '../firebase/config';
-import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { db, auth } from "../firebase/config";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
+import { Loader2 } from "lucide-react";
 
 export function JoinQuizView() {
-    const navigate = useNavigate();
-    const [user, setUser] = useState(null);
-    const [authStatus, setAuthStatus] = useState('pending'); // 'pending', 'success', 'failed'
-    
-    const [userName, setUserName] = useState('');
-    const [quizId, setQuizId] = useState('');
-    const [joinError, setJoinError] = useState('');
-    const [isJoining, setIsJoining] = useState(false);
+  const [userName, setUserName] = useState("");
+  const [quizIdToJoin, setQuizIdToJoin] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const navigate = useNavigate();
 
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            if (currentUser) {
-                setUser(currentUser);
-                setAuthStatus('success');
-            } else {
-                // If there's no user, it might be the first load or a failed sign-in
-                // We will give it a moment, and if still no user, we'll mark it as failed.
-                setTimeout(() => {
-                    if (!auth.currentUser) {
-                        setAuthStatus('failed');
-                    }
-                }, 2500); // Wait 2.5 seconds before showing the manual connect button
-            }
-        });
-        return () => unsubscribe();
-    }, []);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      }
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
-    const handleManualConnect = () => {
-        setAuthStatus('pending'); // Show spinner while connecting
-        signInAnonymously(auth).catch(error => {
-            console.error("Manual sign-in failed:", error);
-            setJoinError("Connection failed. Please check your network and try again.");
-            setAuthStatus('failed');
-        });
-    };
+  const handleConnect = () => {
+    setAuthLoading(true);
+    signInAnonymously(auth).catch((err) => {
+      setError(
+        "Failed to connect to the server. Please check your connection and try again."
+      );
+      console.error(err);
+      setAuthLoading(false);
+    });
+  };
 
-    const handleJoin = async () => {
-        setJoinError('');
-        if (!user) {
-            setJoinError("Authentication not ready. Please try again.");
-            return;
-        }
-        if (!quizId || !userName) {
-            setJoinError("Please enter a Quiz ID and your name.");
-            return;
-        }
-        setIsJoining(true);
-        try {
-            const quizRef = doc(db, "quizzes", quizId.toUpperCase());
-            const quizSnap = await getDoc(quizRef);
-            if (quizSnap.exists()) {
-                await setDoc(doc(db, `quizzes/${quizId.toUpperCase()}/participants`, user.uid), {
-                    name: userName,
-                    score: 0,
-                });
-                navigate(`/participant/${quizId.toUpperCase()}`);
-            } else {
-                setJoinError("Quiz not found! Please check the ID.");
-            }
-        } catch (error) {
-            console.error("Firebase Error during join:", error);
-            setJoinError("Permission Denied. Check Firestore rules.");
-        } finally {
-            setIsJoining(false);
-        }
-    };
+  const handleJoinQuiz = async () => {
+    if (!userName.trim() || !quizIdToJoin.trim() || !user) {
+      setError("Please enter your name and a valid Quiz ID.");
+      return;
+    }
+    setLoading(true);
+    setError("");
 
-    const renderContent = () => {
-        if (authStatus === 'pending') {
-            return <div className="text-center"><Loader2 className="animate-spin" size={48} /><p className="mt-3">Connecting...</p></div>;
-        }
-
-        if (authStatus === 'failed') {
-            return (
-                <div className="text-center">
-                    <h3 className="text-danger">Connection Failed</h3>
-                    <p className="text-muted mb-4">Could not connect to the server automatically. This can happen on some mobile browsers.</p>
-                    <button className="btn btn-primary btn-lg" onClick={handleManualConnect}>
-                        <Wifi className="mr-2" /> Connect to Server
-                    </button>
-                </div>
-            );
-        }
-
-        // authStatus === 'success'
-        return (
-            <form onSubmit={(e) => { e.preventDefault(); handleJoin(); }}>
-                <div className="form-group">
-                    <input
-                        type="text"
-                        value={userName}
-                        onChange={(e) => setUserName(e.target.value)}
-                        placeholder="Enter your name"
-                        className="form-control form-control-lg"
-                    />
-                </div>
-                <div className="form-group">
-                    <input
-                        type="text"
-                        value={quizId}
-                        onChange={(e) => setQuizId(e.target.value.toUpperCase())}
-                        placeholder="Enter Quiz ID"
-                        className="form-control form-control-lg"
-                    />
-                </div>
-                {joinError && <p className="text-danger text-center mt-3">{joinError}</p>}
-                <button
-                    type="submit"
-                    disabled={isJoining || !user}
-                    className="btn btn-success btn-lg btn-block mt-4 d-flex align-items-center justify-content-center"
-                >
-                    {isJoining && <Loader2 className="animate-spin mr-2" />}
-                    Join Quiz
-                </button>
-            </form>
+    const quizRef = doc(db, "quizzes", quizIdToJoin);
+    try {
+      const quizSnap = await getDoc(quizRef);
+      if (quizSnap.exists()) {
+        const participantRef = doc(
+          db,
+          "quizzes",
+          quizIdToJoin,
+          "participants",
+          user.uid
         );
-    };
+        await setDoc(participantRef, {
+          name: userName,
+          score: 0,
+        });
+        // This is the corrected line
+        navigate(`/quiz/${quizIdToJoin}`);
+      } else {
+        setError("Quiz not found! Please check the ID and try again.");
+      }
+    } catch (err) {
+      setError("Could not join the quiz. Please try again later.");
+      console.error(err);
+    }
+    setLoading(false);
+  };
 
+  if (authLoading) {
     return (
-        <div className="d-flex align-items-center justify-content-center min-vh-100">
-            <div className="card shadow-lg border-0" style={{ width: '100%', maxWidth: '400px' }}>
-                <div className="card-body p-5">
-                    <button onClick={() => navigate('/')} className="btn btn-outline-secondary" style={{ position: 'absolute', top: '15px', left: '15px' }}>
-                        <ArrowLeft size={24} />
-                    </button>
-                    <h2 className="card-title text-center text-success font-weight-bold mb-4">Join a Quiz</h2>
-                    {renderContent()}
-                </div>
-            </div>
+      <div className='animated-card text-center' style={{ maxWidth: "500px" }}>
+        <div className='text-light d-flex align-items-center justify-content-center'>
+          <Loader2 className='animate-spin mr-3' />
+          <span>Connecting...</span>
         </div>
+      </div>
     );
+  }
+
+  if (!user) {
+    return (
+      <div className='animated-card text-center' style={{ maxWidth: "500px" }}>
+        <h2 className='text-light mb-4'>Connection Required</h2>
+        <p className='text-light mb-4'>
+          Please connect to the server to join a quiz.
+        </p>
+        <button
+          className='btn btn-success btn-lg animated-button'
+          onClick={handleConnect}
+        >
+          Connect to Server
+        </button>
+        {error && <p className='text-danger mt-3'>{error}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className='animated-card text-center' style={{ maxWidth: "500px" }}>
+      <h1 className='display-4 font-weight-bold mb-3 text-primary'>
+        Join a Quiz
+      </h1>
+      <div className='form-group text-left'>
+        <label className='text-light'>Your Name</label>
+        <input
+          type='text'
+          className='form-control form-control-lg'
+          placeholder='Enter your name'
+          value={userName}
+          onChange={(e) => setUserName(e.target.value)}
+        />
+      </div>
+      <div className='form-group text-left'>
+        <label className='text-light'>Quiz ID</label>
+        <input
+          type='text'
+          className='form-control form-control-lg'
+          placeholder='Enter Quiz ID'
+          value={quizIdToJoin}
+          onChange={(e) => setQuizIdToJoin(e.target.value)}
+        />
+      </div>
+      {error && <p className='text-danger'>{error}</p>}
+      <button
+        className='btn btn-success btn-lg btn-block animated-button mt-4'
+        onClick={handleJoinQuiz}
+        disabled={loading}
+      >
+        {loading ? <Loader2 className='animate-spin' /> : "Join Quiz"}
+      </button>
+    </div>
+  );
 }

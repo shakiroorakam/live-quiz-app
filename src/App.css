@@ -1,125 +1,168 @@
-/* --- Global Styles & Poppins Font --- */
+/* Global Styles & Background */
 body {
-    font-family: 'Poppins', sans-serif;
+  margin: 0;
+  font-family: "Poppins", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* --- Dark Grey Animated Background --- */
 .app-background-dark {
-    background: linear-gradient(-45deg, #232526, #414345, #232526, #414345);
-    background-size: 400% 400%;
-    animation: gradientAnimation 15s ease infinite;
-    min-height: 100vh;
-    color: #f8f9fa; /* Light text color for dark background */
+  background: linear-gradient(135deg, #232526 0%, #414345 100%);
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  font-family: "Poppins", sans-serif;
+  color: white;
 }
 
-@keyframes gradientAnimation {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+/* Card Styles */
+.animated-card {
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  text-align: left;
+  padding: 2.5rem;
+  color: #333; /* Default dark text for cards */
 }
 
-/* --- Card Styles for Dark Theme --- */
-.card-dark {
-    background-color: rgba(45, 48, 51, 0.85); /* Dark, slightly transparent card */
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(10px);
+.animated-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
 }
 
-.card-header-dark {
-    background-color: rgba(255, 255, 255, 0.05);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    color: #f8f9fa;
-}
-
-/* --- List Group Styles for Dark Theme --- */
-.list-group-item-dark {
-    background-color: transparent;
-    border-color: rgba(255, 255, 255, 0.1);
-    color: #f8f9fa;
-}
-
-/* --- Form Control Styles for Dark Theme --- */
-.form-control-dark {
-    background-color: #343a40;
-    border: 1px solid #6c757d;
-    color: #f8f9fa;
-}
-
-.form-control-dark:focus {
-    background-color: #343a40;
-    border-color: #0d6efd;
-    color: #f8f9fa;
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-}
-
-/* --- Button Styles & Animations --- */
+/* Button Styles */
 .animated-button {
-    border-radius: 50px;
-    font-weight: 600;
-    padding: 12px 30px;
-    border: none;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  border-radius: 50px;
+  padding: 12px 30px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  border: none;
 }
 
 .animated-button:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 7px 20px rgba(0, 0, 0, 0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
 }
 
-.btn-primary.animated-button {
-    background: linear-gradient(45deg, #0d6efd, #0a58ca);
-    color: white;
+/* Custom Dark Navbar */
+.navbar-custom-dark {
+  background-color: rgba(30, 30, 30, 0.85);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.btn-success.animated-button {
-    background: linear-gradient(45deg, #198754, #1e7e34);
-    color: white;
+/* Custom styles for Quiz Master View */
+.quiz-master-card .nav-tabs .nav-link {
+  color: #495057;
+  border: 1px solid transparent;
 }
 
-/* --- Participant Answer Button Style --- */
-.answer-btn {
-    transition: all 0.2s ease-in-out;
-    border-width: 2px;
+.quiz-master-card .nav-tabs .nav-link.active {
+  color: #007bff;
+  background-color: #f8f9fa;
+  border-color: #dee2e6 #dee2e6 #f8f9fa;
+  border-top-left-radius: 0.5rem;
+  border-top-right-radius: 0.5rem;
 }
 
-.answer-btn:hover {
-    transform: scale(1.02);
+.live-question-indicator {
+  border: 2px solid #28a745;
+  animation: pulse-border 1.5s infinite;
 }
 
-/* --- Modal Styles for Dark Theme --- */
-.modal-content-dark {
-    background-color: #2d3033;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #f8f9fa;
+@keyframes pulse-border {
+  0% {
+    box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+  }
 }
-.modal-header-dark {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-.modal-footer-dark {
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* --- Navbar Style --- */
-.navbar-dark-custom {
-    background-color: rgba(33, 37, 41, 0.8);
-    backdrop-filter: blur(10px);
-}
-
-/* --- Fade-in Animation for the main container --- */
-.fade-in {
-    animation: fadeInAnimation 0.5s ease-in-out;
+/* --- Public Scorecard Display --- */
+.public-display-container {
+  width: 100%;
+  max-width: 1600px; /* Wider for large screens */
+  margin: auto;
+  color: white;
 }
 
-@keyframes fadeInAnimation {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.public-score-card {
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.public-score-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.public-score-card .card-title {
+  font-size: 2rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.public-score-card .display-4 {
+  font-size: 3.5rem;
+  font-weight: 700;
+}
+/* --- Toppers Display on Final Scoreboard --- */
+.toppers-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  margin-bottom: 3rem;
+  flex-wrap: wrap;
+}
+
+.rank-card {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 15px;
+  padding: 1.5rem;
+  margin: 0 10px;
+  text-align: center;
+  width: 250px;
+  transition: all 0.3s ease;
+}
+
+.rank-card .rank-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.rank-1 {
+  order: 2;
+  transform: scale(1.15);
+  background: linear-gradient(145deg, #ffd700, #f0c700);
+  color: #333;
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+}
+
+.rank-2 {
+  order: 1;
+  transform: scale(1);
+  background: linear-gradient(145deg, #c0c0c0, #b0b0b0);
+  color: #333;
+}
+
+.rank-3 {
+  order: 3;
+  transform: scale(0.9);
+  background: linear-gradient(145deg, #cd7f32, #b8732d);
+  color: white;
 }
