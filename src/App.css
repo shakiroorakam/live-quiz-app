@@ -5,6 +5,58 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+/* ... all your existing styles ... */
+
+/* --- New Home View Styles --- */
+.home-card {
+  background-color: #ffffff;
+  border-radius: 20px;
+  padding: 2.5rem 3rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+}
+
+.home-card h1 {
+  font-weight: 700;
+  color: #007bff; /* Primary Blue */
+}
+
+.home-card p {
+  color: #6c757d; /* Muted Grey */
+  margin-bottom: 2rem;
+}
+
+.home-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.8rem 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 50px; /* Fully rounded */
+  border: none;
+  color: white;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.home-btn-admin {
+  background: linear-gradient(45deg, #007bff, #0056b3);
+}
+
+.home-btn-join {
+  background: linear-gradient(45deg, #28a745, #218838);
+}
+
+.home-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  color: white;
+  text-decoration: none;
+}
 
 .app-background-dark {
   background: linear-gradient(135deg, #232526 0%, #414345 100%);

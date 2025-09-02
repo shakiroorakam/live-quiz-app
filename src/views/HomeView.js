@@ -4,23 +4,19 @@ import { ShieldCheck, UserCheck } from "lucide-react";
 
 export function HomeView() {
   return (
-    <div className='animated-card text-center' style={{ maxWidth: "500px" }}>
-      <h1 className='display-4 font-weight-bold mb-3 text-primary'>
-        Live Quiz Platform
-      </h1>
-      <p className='lead text-light mb-5'>Choose your role to begin</p>
-      <div className='d-flex justify-content-center'>
-        <Link
-          to='/admin'
-          className='btn btn-primary btn-lg animated-button d-flex align-items-center justify-content-center mx-2'
-        >
-          <ShieldCheck className='mr-2' size={24} /> Admin Login
+    <div className='home-card'>
+      <h1>Live Quiz</h1>
+      <p>Choose your role to begin</p>
+      {/* Using align-items-stretch to ensure both buttons have the same width */}
+      <div
+        className='d-flex flex-column align-items-stretch'
+        style={{ gap: "1rem" }}
+      >
+        <Link to='/admin' className='home-btn home-btn-admin'>
+          <ShieldCheck className='mr-2' size={22} /> Admin Login
         </Link>
-        <Link
-          to='/join'
-          className='btn btn-success btn-lg animated-button d-flex align-items-center justify-content-center mx-2'
-        >
-          <UserCheck className='mr-2' size={24} /> Join Quiz
+        <Link to='/join' className='home-btn home-btn-join'>
+          <UserCheck className='mr-2' size={22} /> Join Quiz
         </Link>
       </div>
     </div>

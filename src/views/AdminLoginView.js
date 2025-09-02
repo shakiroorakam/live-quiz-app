@@ -231,7 +231,7 @@ export function AdminLoginView({ user }) {
             className='form-control'
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder='shakirokm@gmail.com'
+            placeholder='Email'
             required
           />
         </div>
@@ -242,7 +242,7 @@ export function AdminLoginView({ user }) {
             className='form-control'
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder='shakir@123'
+            placeholder='Password'
             required
           />
         </div>
