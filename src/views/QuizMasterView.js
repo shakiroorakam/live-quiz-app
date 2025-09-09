@@ -3,15 +3,15 @@ import ReactDOM from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { onSnapshot, doc, collection, updateDoc, writeBatch, deleteDoc, getDocs, getDoc, increment } from 'firebase/firestore';
-import { CheckCircle, XCircle, PlusCircle, Send, Trash2, Loader2, Edit, PlayCircle, StopCircle, Users, HelpCircle } from 'lucide-react';
+import { CheckCircle, XCircle, PlusCircle, Send, Trash2, Loader2, Edit, PlayCircle, StopCircle, Users, HelpCircle, Clock } from 'lucide-react';
 import { CopyButton } from '../components/CopyButton';
 import { MasterNav } from '../components/MasterNav';
 
 // Language detection helper
 const getLangClass = (text) => {
     if (!text) return '';
-    if (/[\u0600-\u06FF]/.test(text)) return 'lang-ar'; // Arabic
-    if (/[\u0D00-\u0D7F]/.test(text)) return 'lang-ml'; // Malayalam
+    if (/[\u0600-\u06FF]/.test(text)) return 'lang-ar';
+    if (/[\u0D00-\u0D7F]/.test(text)) return 'lang-ml';
     return '';
 };
 
@@ -241,7 +241,10 @@ const QuestionsTab = ({ quiz, handleAddQuestion, newQuestion, setNewQuestion, ha
                 <div className="list-group">
                     {quiz.questions?.map(q => (
                         <div key={q.id} className="list-group-item d-flex justify-content-between align-items-center">
-                            <span className={`text-truncate mr-3 multilang-text ${getLangClass(q.text)}`}>{q.text}</span>
+                            <div>
+                                <span className={`text-truncate mr-3 multilang-text ${getLangClass(q.text)}`}>{q.text}</span>
+                                {q.timer && <small className="text-muted d-block"><Clock size={12} className="mr-1"/>{q.timer}s</small>}
+                            </div>
                             <div>
                                 <button className="btn btn-sm btn-outline-info mr-2" onClick={() => setEditingQuestion(q)}><Edit size={16}/></button>
                                 <button className="btn btn-sm btn-danger" onClick={() => handleDeleteQuestion(q.id)}><Trash2 size={16}/></button>
@@ -261,7 +264,10 @@ const StartQuizTab = ({ quiz, handleAirQuestion, airedQuestionIds }) => (
         <div className="list-group">
             {quiz.questions?.length > 0 ? quiz.questions?.map(q => (
                 <div key={q.id} className={`list-group-item d-flex justify-content-between align-items-center ${airedQuestionIds.includes(q.id) ? 'disabled-question' : ''}`}>
-                    <span className={`text-truncate mr-3 multilang-text ${getLangClass(q.text)}`}>{q.text}</span>
+                    <div>
+                        <span className={`text-truncate mr-3 multilang-text ${getLangClass(q.text)}`}>{q.text}</span>
+                        {q.timer && <small className="text-muted d-block"><Clock size={12} className="mr-1"/>{q.timer}s</small>}
+                    </div>
                     <button 
                         className="btn btn-sm btn-success" 
                         onClick={() => handleAirQuestion(q.id)}
@@ -406,10 +412,8 @@ export function QuizMasterView({ user }) {
     const handleAirQuestion = async (questionId) => {
         const newAiredIds = [...airedQuestionIds, questionId];
         setAiredQuestionIds(newAiredIds);
-
         const questionToAir = quiz.questions.find(q => q.id === questionId);
         const airTime = (questionToAir.timer && questionToAir.timer > 0) ? new Date() : null;
-
         await updateDoc(doc(db, "quizzes", quizId), { 
             state: 'question_live', 
             currentQuestionId: questionId,

@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { db, auth } from '../firebase/config';
+import { db } from '../firebase/config';
 import { onSnapshot, doc, collection, setDoc, writeBatch, increment } from 'firebase/firestore';
-import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
-import { Loader2, BarChart2 } from 'lucide-react';
+import { Loader2, BarChart2, Clock } from 'lucide-react';
 
 // Language detection helper
 const getLangClass = (text) => {
@@ -24,6 +23,8 @@ export function ParticipantView({ user }) {
     const [descriptiveAnswer, setDescriptiveAnswer] = useState('');
     const hasSubmittedRef = useRef(false);
     const [dataLoading, setDataLoading] = useState(true);
+    const [timeLeft, setTimeLeft] = useState(null);
+    const timerRef = useRef(null);
 
     // Effect 1: Fetch Quiz Data
     useEffect(() => {
@@ -124,21 +125,57 @@ export function ParticipantView({ user }) {
 
     }, [user, quiz, selectedOption, descriptiveAnswer, quizId]);
     
-    // Effect 4: Anti-Cheat & Auto-Submit
+    // --- The Fix: Use a ref to hold the latest submit function to prevent re-renders ---
+    const handleSubmitAnswerRef = useRef(handleSubmitAnswer);
+    useEffect(() => {
+        handleSubmitAnswerRef.current = handleSubmitAnswer;
+    }, [handleSubmitAnswer]);
+
+    // Effect 4: Countdown Timer Logic
+    useEffect(() => {
+        if (timerRef.current) clearInterval(timerRef.current);
+        setTimeLeft(null);
+
+        if (user && quiz && quiz.state === 'question_live' && quiz.currentQuestionId && quiz.airTime) {
+            const currentQuestion = quiz.questions.find(q => q.id === quiz.currentQuestionId);
+            
+            if (currentQuestion && currentQuestion.timer > 0) {
+                const airTimeMs = quiz.airTime.toDate().getTime();
+                const endTimeMs = airTimeMs + (currentQuestion.timer * 1000);
+
+                timerRef.current = setInterval(() => {
+                    const remainingMs = endTimeMs - Date.now();
+                    if (remainingMs <= 0) {
+                        setTimeLeft(0);
+                        clearInterval(timerRef.current);
+                        handleSubmitAnswerRef.current(false); // Use the ref here
+                    } else {
+                        setTimeLeft(Math.ceil(remainingMs / 1000));
+                    }
+                }, 1000);
+            }
+        }
+        
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+        };
+    }, [user, quiz]); // The dependency array is now stable
+
+    // Effect 5: Anti-Cheat & Auto-Submit
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (document.hidden && quiz?.state === 'question_live' && !hasSubmittedRef.current) {
-                handleSubmitAnswer(true);
+                handleSubmitAnswerRef.current(true); // Use the ref here
             }
         };
         
         if(quiz?.state === 'question_ended' && !hasSubmittedRef.current) {
-            handleSubmitAnswer(false);
+            handleSubmitAnswerRef.current(false); // And here
         }
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [quiz, handleSubmitAnswer]);
+    }, [quiz]); // The dependency array is now stable
 
 
     const renderContent = () => {
@@ -157,7 +194,6 @@ export function ParticipantView({ user }) {
             return (
                 <div className="text-center">
                     <h4 className="font-weight-bold">Answer Submitted!</h4>
-                    
                     <div className={`mt-3 p-3 ${submittedAnswerClass} border rounded text-left`}>
                         <p className="mb-1 text-muted"><small>Your Answer:</small></p>
                         <p className={`mb-0 font-weight-bold multilang-text ${getLangClass(myAnswer.answer)}`}>
@@ -181,7 +217,13 @@ export function ParticipantView({ user }) {
         if (quiz.state === 'question_live' && currentQuestion) {
             return (
                 <div className="anti-copy">
-                    <h3 className={`mb-4 font-weight-bold text-center multilang-text ${getLangClass(currentQuestion.text)}`}>{currentQuestion.text}</h3>
+                     {timeLeft !== null && (
+                        <div className="timer-display alert alert-info d-flex align-items-center justify-content-center">
+                            <Clock size={18} className="mr-2"/>
+                            Time Left: <strong>&nbsp;{timeLeft}s</strong>
+                        </div>
+                    )}
+                    <h3 className={`my-4 font-weight-bold text-center multilang-text ${getLangClass(currentQuestion.text)}`}>{currentQuestion.text}</h3>
                     {currentQuestion.type === 'mcq' ? (
                         <div className="list-group">
                             {currentQuestion.options.map((opt, i) => (
