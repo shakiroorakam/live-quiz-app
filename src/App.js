@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
-import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth'; // signInAnonymously is removed
 import { auth } from './firebase/config';
 
 import { HomeView } from './views/HomeView';
@@ -9,7 +9,7 @@ import { JoinQuizView } from './views/JoinQuizView';
 import { QuizMasterView } from './views/QuizMasterView';
 import { ParticipantView } from './views/ParticipantView';
 import { ScorecardView } from './views/ScorecardView';
-import { ScoreboardOnlyView } from './views/ScoreboardOnlyView'; // 1. Import the new view
+import { ScoreboardOnlyView } from './views/ScoreboardOnlyView';
 import { Navbar } from './components/Navbar';
 import { Loader2 } from 'lucide-react';
 import './App.css';
@@ -18,20 +18,11 @@ export default function App() {
     const [user, setUser] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
 
+    // This useEffect is now much simpler. It ONLY listens for changes.
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            if (currentUser) {
-                setUser(currentUser);
-            } else {
-                // If there is no user, sign them in anonymously.
-                // This ensures every visitor gets a stable user ID.
-                signInAnonymously(auth).catch((error) => {
-                    console.error("Anonymous sign-in failed:", error);
-                    setAuthLoading(false); // Stop loading even if it fails
-                });
-                // The listener will fire again once sign-in is complete.
-            }
-             setAuthLoading(false);
+            setUser(currentUser);
+            setAuthLoading(false);
         });
         return () => unsubscribe();
     }, []);
@@ -57,7 +48,6 @@ export default function App() {
                         <Route path="/quiz/:quizId/master" element={<QuizMasterView user={user} />} />
                         <Route path="/quiz/:quizId" element={<ParticipantView user={user} />} />
                         <Route path="/score/:quizId" element={<ScorecardView />} />
-                        {/* 2. Add the new route for the scoreboard-only display */}
                         <Route path="/scoreboard/:quizId" element={<ScoreboardOnlyView />} />
                     </Routes>
                 </div>
